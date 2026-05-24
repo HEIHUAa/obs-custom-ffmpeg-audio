@@ -4,6 +4,10 @@
 #include <cstring>
 #include <cstdlib>
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
 #define do_log(level, format, ...) \
 	blog(level, "[Custom FFmpeg Audio: '%s'] " format, \
 	     obs_encoder_get_name(enc->encoder), ##__VA_ARGS__)
@@ -469,6 +473,31 @@ static bool quality_mode_modified(obs_properties_t *props, obs_property_t *prop,
 	return codec_modified(props, prop, settings);
 }
 
+static void add_dynamic_ffmpeg_codecs(obs_property_t *prop)
+{
+	const AVCodec *codec = nullptr;
+	void *iter = nullptr;
+
+#ifdef _WIN32
+	__try {
+#endif
+		while ((codec = av_codec_iterate(&iter))) {
+			if (!av_codec_is_encoder(codec))
+				continue;
+			if (codec->type != AVMEDIA_TYPE_AUDIO)
+				continue;
+			obs_property_list_add_string(prop, codec->name, codec->name);
+		}
+#ifdef _WIN32
+	}
+	__except (EXCEPTION_EXECUTE_HANDLER) {
+		blog(LOG_WARNING,
+		     "[Custom FFmpeg Audio] Failed to iterate FFmpeg codecs, "
+		     "falling back to known codecs only");
+	}
+#endif
+}
+
 static obs_properties_t *enc_properties(void *data)
 {
 	UNUSED_PARAMETER(data);
@@ -480,52 +509,10 @@ static obs_properties_t *enc_properties(void *data)
 		obs_module_text("Codec"),
 		OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_STRING);
 
-	const AVCodec *codec = nullptr;
-	void *iter = nullptr;
-	std::vector<const char *> added;
+	for (const codec_entry *e = known_codecs; e->name; e++)
+		obs_property_list_add_string(prop, e->name, e->codec_id);
 
-#ifdef _WIN32
-	__try {
-		while ((codec = av_codec_iterate(&iter))) {
-			if (!av_codec_is_encoder(codec))
-				continue;
-			if (codec->type != AVMEDIA_TYPE_AUDIO)
-				continue;
-
-			const char *name = codec->name;
-			obs_property_list_add_string(prop, name, name);
-			added.push_back(name);
-		}
-	}
-	__except (EXCEPTION_EXECUTE_HANDLER) {
-		blog(LOG_WARNING,
-		     "[Custom FFmpeg Audio] Failed to iterate FFmpeg codecs, falling back to known codecs only");
-	}
-#else
-	while ((codec = av_codec_iterate(&iter))) {
-		if (!av_codec_is_encoder(codec))
-			continue;
-		if (codec->type != AVMEDIA_TYPE_AUDIO)
-			continue;
-
-		const char *name = codec->name;
-		obs_property_list_add_string(prop, name, name);
-		added.push_back(name);
-	}
-#endif
-
-	for (const codec_entry *e = known_codecs; e->name; e++) {
-		bool found = false;
-		for (const char *a : added) {
-			if (strcmp(a, e->codec_id) == 0) {
-				found = true;
-				break;
-			}
-		}
-		if (!found) {
-			obs_property_list_add_string(prop, e->name, e->codec_id);
-		}
-	}
+	add_dynamic_ffmpeg_codecs(prop);
 
 	obs_property_set_modified_callback(prop, codec_modified);
 
