@@ -244,7 +244,7 @@ static void *enc_create(obs_data_t *settings, obs_encoder_t *encoder)
 					    AV_CH_LAYOUT_4POINT1);
 	if (aoi->speakers == SPEAKERS_2POINT1)
 		av_channel_layout_from_mask(&enc->context->ch_layout,
-					    AV_CH_SURROUND);
+					    AV_CH_LAYOUT_SURROUND);
 	if (aoi->speakers == SPEAKERS_7POINT1 &&
 	    strcmp(codec_id, "alac") == 0)
 		av_channel_layout_from_mask(&enc->context->ch_layout,
