@@ -3,10 +3,13 @@
 #include <obs-module.h>
 #include <string>
 #include <vector>
+
+extern "C" {
 #include <libavcodec/avcodec.h>
 #include <libavutil/avutil.h>
 #include <libavutil/opt.h>
 #include <libavutil/channel_layout.h>
+}
 
 struct custom_ffmpeg_audio_encoder {
 	obs_encoder_t *encoder;
