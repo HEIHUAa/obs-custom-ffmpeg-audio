@@ -1,6 +1,6 @@
 add_library(obs-custom-ffmpeg-audio MODULE)
 
-find_package(libobs CONFIG REQUIRED)
+find_package(libobs CONFIG)
 find_package(FFmpeg REQUIRED
   COMPONENTS avcodec avutil)
 
