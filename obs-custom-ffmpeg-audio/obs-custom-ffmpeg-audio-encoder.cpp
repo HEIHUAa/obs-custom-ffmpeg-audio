@@ -68,36 +68,11 @@ static inline enum audio_format convert_ffmpeg_sample_format(enum AVSampleFormat
 	}
 }
 
-static inline size_t get_audio_planes(enum audio_format fmt, enum speaker_layout speakers)
+static inline std::string ffmpeg_error_str(int errnum)
 {
-	if (is_audio_planar(fmt)) {
-		return (size_t)get_audio_channels(speakers);
-	}
-	return 1;
-}
-
-static inline size_t get_audio_bytes_per_channel(enum audio_format fmt)
-{
-	switch (fmt) {
-	case AUDIO_FORMAT_U8BIT:
-	case AUDIO_FORMAT_U8BIT_PLANAR:
-		return 1;
-	case AUDIO_FORMAT_16BIT:
-	case AUDIO_FORMAT_16BIT_PLANAR:
-		return 2;
-	case AUDIO_FORMAT_32BIT:
-	case AUDIO_FORMAT_32BIT_PLANAR:
-	case AUDIO_FORMAT_FLOAT:
-	case AUDIO_FORMAT_FLOAT_PLANAR:
-		return 4;
-	default:
-		return 1;
-	}
-}
-
-static inline size_t get_audio_size(enum audio_format fmt, enum speaker_layout speakers, int samples)
-{
-	return get_audio_bytes_per_channel(fmt) * (size_t)get_audio_channels(speakers) * (size_t)samples;
+	char buf[AV_ERROR_MAX_STRING_SIZE];
+	av_strerror(errnum, buf, sizeof(buf));
+	return std::string(buf);
 }
 
 /* ── 编码器回调 ──────────────────────────────────────────── */
@@ -130,7 +105,8 @@ static bool is_lossless_codec(const char *codec_id)
 
 static inline int64_t rescale_ts(int64_t val, AVCodecContext *ctx, AVRational new_base)
 {
-	return av_rescale_q_rnd(val, ctx->time_base, new_base, AV_ROUND_NEAR_INF | AV_ROUND_PASS_MINMAX);
+	return av_rescale_q_rnd(val, ctx->time_base, new_base,
+			    (AVRounding)(AV_ROUND_NEAR_INF | AV_ROUND_PASS_MINMAX));
 }
 
 static void enc_destroy(void *data)
@@ -162,7 +138,7 @@ static bool initialize_codec(custom_ffmpeg_audio_encoder *enc)
 	if (!enc->custom_options.empty()) {
 		int ret = av_dict_parse_string(&opts, enc->custom_options.c_str(), "=", " ", 0);
 		if (ret < 0) {
-			warn("Failed to parse custom options: %s", av_err2str(ret));
+			warn("Failed to parse custom options: %s", ffmpeg_error_str(ret).c_str());
 		}
 	}
 
@@ -180,11 +156,12 @@ static bool initialize_codec(custom_ffmpeg_audio_encoder *enc)
 
 	if (ret < 0) {
 		struct dstr error_msg = {0};
+		std::string err_str = ffmpeg_error_str(ret);
 		dstr_printf(&error_msg, "Failed to open codec '%s': %s",
-			    enc->codec_name.c_str(), av_err2str(ret));
+			    enc->codec_name.c_str(), err_str.c_str());
 		obs_encoder_set_last_error(enc->encoder, error_msg.array);
 		dstr_free(&error_msg);
-		warn("Failed to open codec '%s': %s", enc->codec_name.c_str(), av_err2str(ret));
+		warn("Failed to open codec '%s': %s", enc->codec_name.c_str(), err_str.c_str());
 		return false;
 	}
 
@@ -204,7 +181,7 @@ static bool initialize_codec(custom_ffmpeg_audio_encoder *enc)
 	ret = av_samples_alloc(enc->sample_buffer, nullptr, channels,
 			       enc->frame_size, enc->context->sample_fmt, 0);
 	if (ret < 0) {
-		warn("Failed to create audio sample buffer: %s", av_err2str(ret));
+		warn("Failed to create audio sample buffer: %s", ffmpeg_error_str(ret).c_str());
 		return false;
 	}
 
@@ -218,7 +195,6 @@ static void init_sizes(custom_ffmpeg_audio_encoder *enc, audio_t *audio)
 	const struct audio_output_info *aoi = audio_output_get_info(audio);
 	enum audio_format fmt = convert_ffmpeg_sample_format(enc->context->sample_fmt);
 	enc->audio_planes = get_audio_planes(fmt, aoi->speakers);
-	enc->audio_size = get_audio_size(fmt, aoi->speakers, 1);
 }
 
 static void *enc_create(obs_data_t *settings, obs_encoder_t *encoder)
@@ -232,6 +208,13 @@ static void *enc_create(obs_data_t *settings, obs_encoder_t *encoder)
 	enc->quality = (int)obs_data_get_int(settings, "quality");
 	enc->custom_options = obs_data_get_string(settings, "custom_options");
 	enc->codec_name = codec_id;
+
+	audio_t *audio = nullptr;
+	const struct audio_output_info *aoi = nullptr;
+	int channels = 0;
+	const char *sample_rate_str = nullptr;
+	const enum AVSampleFormat *sample_fmts = nullptr;
+	const int *supported_samplerates = nullptr;
 
 	bool lossless = is_lossless_codec(codec_id);
 
@@ -250,21 +233,24 @@ static void *enc_create(obs_data_t *settings, obs_encoder_t *encoder)
 		goto fail;
 	}
 
-	audio_t *audio = obs_encoder_audio(encoder);
-	const struct audio_output_info *aoi = audio_output_get_info(audio);
+	audio = obs_encoder_audio(encoder);
+	aoi = audio_output_get_info(audio);
 
-	int channels = (int)audio_output_get_channels(audio);
+	channels = (int)audio_output_get_channels(audio);
 	av_channel_layout_default(&enc->context->ch_layout, channels);
 
 	if (aoi->speakers == SPEAKERS_4POINT1)
-		enc->context->ch_layout = (AVChannelLayout)AV_CHANNEL_LAYOUT_4POINT1;
+		av_channel_layout_from_mask(&enc->context->ch_layout,
+					    AV_CH_LAYOUT_4POINT1);
 	if (aoi->speakers == SPEAKERS_2POINT1)
-		enc->context->ch_layout = (AVChannelLayout)AV_CHANNEL_LAYOUT_SURROUND;
+		av_channel_layout_from_mask(&enc->context->ch_layout,
+					    AV_CH_SURROUND);
 	if (aoi->speakers == SPEAKERS_7POINT1 &&
 	    strcmp(codec_id, "alac") == 0)
-		enc->context->ch_layout = (AVChannelLayout)AV_CHANNEL_LAYOUT_7POINT1_WIDE_BACK;
+		av_channel_layout_from_mask(&enc->context->ch_layout,
+					    AV_CH_LAYOUT_7POINT1_WIDE_BACK);
 
-	const char *sample_rate_str = obs_data_get_string(settings, "sample_rate");
+	sample_rate_str = obs_data_get_string(settings, "sample_rate");
 	int sr;
 	if (strcmp(sample_rate_str, "auto") == 0)
 		sr = (int)audio_output_get_sample_rate(audio);
@@ -273,8 +259,8 @@ static void *enc_create(obs_data_t *settings, obs_encoder_t *encoder)
 
 	enc->context->sample_rate = sr;
 
-	const enum AVSampleFormat *sample_fmts = nullptr;
-	const int *supported_samplerates = nullptr;
+	sample_fmts = nullptr;
+	supported_samplerates = nullptr;
 
 #if LIBAVCODEC_VERSION_INT < AV_VERSION_INT(61, 13, 100)
 	sample_fmts = enc->codec->sample_fmts;
@@ -365,7 +351,7 @@ static bool do_encode(custom_ffmpeg_audio_encoder *enc,
 					   enc->sample_buffer[0],
 					   enc->frame_size_bytes * channels, 1);
 	if (ret < 0) {
-		warn("avcodec_fill_audio_frame failed: %s", av_err2str(ret));
+		warn("avcodec_fill_audio_frame failed: %s", ffmpeg_error_str(ret).c_str());
 		return false;
 	}
 
@@ -383,7 +369,7 @@ static bool do_encode(custom_ffmpeg_audio_encoder *enc,
 		ret = 0;
 
 	if (ret < 0) {
-		warn("encode failed: %s", av_err2str(ret));
+		warn("encode failed: %s", ffmpeg_error_str(ret).c_str());
 		av_packet_unref(&avpacket);
 		return false;
 	}
