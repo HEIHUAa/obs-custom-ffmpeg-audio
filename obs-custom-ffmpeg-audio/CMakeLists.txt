@@ -1,10 +1,9 @@
 add_library(obs-custom-ffmpeg-audio MODULE)
 
 find_package(libobs CONFIG)
-if(NOT TARGET FFmpeg::avcodec)
-  find_package(FFmpeg REQUIRED
-    COMPONENTS avcodec avutil)
-endif()
+
+find_package(FFmpeg REQUIRED
+  COMPONENTS avcodec avutil)
 
 target_sources(
   obs-custom-ffmpeg-audio
@@ -14,7 +13,49 @@ target_sources(
   obs-custom-ffmpeg-audio-encoder.hpp
 )
 
-target_link_libraries(obs-custom-ffmpeg-audio PRIVATE OBS::libobs FFmpeg::avcodec FFmpeg::avutil)
+if(WIN32)
+  foreach(_comp avcodec avutil)
+    get_target_property(_type FFmpeg::${_comp} TYPE)
+    get_target_property(_implib FFmpeg::${_comp} IMPORTED_IMPLIB)
+    get_target_property(_location FFmpeg::${_comp} IMPORTED_LOCATION)
+    message(STATUS "FFmpeg::${_comp}: TYPE=${_type} IMPLIB=${_implib} LOCATION=${_location}")
+  endforeach()
+
+  foreach(_comp avcodec avutil)
+    if(NOT FFmpeg_${_comp}_IMPLIB MATCHES "-NOTFOUND$" AND FFmpeg_${_comp}_IMPLIB)
+      set(_ffmpeg_${_comp}_lib "${FFmpeg_${_comp}_IMPLIB}")
+    else()
+      find_library(_ffmpeg_${_comp}_lib
+        NAMES ${_comp} lib${_comp}
+        HINTS ${CMAKE_PREFIX_PATH}
+              ${FFmpeg_${_comp}_INCLUDE_DIR}/../lib
+              ${FFmpeg_avutil_INCLUDE_DIR}/../lib
+        PATH_SUFFIXES lib
+      )
+      if(NOT _ffmpeg_${_comp}_lib)
+        find_library(_ffmpeg_${_comp}_lib
+          NAMES ${_comp} lib${_comp}
+        )
+      endif()
+    endif()
+    if(NOT _ffmpeg_${_comp}_lib OR _ffmpeg_${_comp}_lib MATCHES "-NOTFOUND$")
+      message(FATAL_ERROR "Could not find FFmpeg ${_comp} library. "
+        "FFmpeg_${_comp}_IMPLIB=${FFmpeg_${_comp}_IMPLIB} "
+        "CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}")
+    endif()
+    message(STATUS "Linking FFmpeg ${_comp}: ${_ffmpeg_${_comp}_lib}")
+  endforeach()
+
+  target_link_libraries(obs-custom-ffmpeg-audio PRIVATE
+    OBS::libobs
+    FFmpeg::avcodec
+    FFmpeg::avutil
+    "${_ffmpeg_avcodec_lib}"
+    "${_ffmpeg_avutil_lib}"
+  )
+else()
+  target_link_libraries(obs-custom-ffmpeg-audio PRIVATE OBS::libobs FFmpeg::avcodec FFmpeg::avutil)
+endif()
 
 set_target_properties(obs-custom-ffmpeg-audio PROPERTIES
   FOLDER "plugins/obs-custom-ffmpeg-audio"
