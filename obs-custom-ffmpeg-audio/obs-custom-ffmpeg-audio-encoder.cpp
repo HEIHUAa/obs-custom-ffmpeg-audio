@@ -42,40 +42,6 @@ static const codec_entry known_codecs[] = {
 	{nullptr, nullptr, false}
 };
 
-/* ── FFmpeg编码器ID到OBS编解码器名称的映射 ───────────────── */
-static const char *ffmpeg_to_obs_codec(const char *ffmpeg_codec_id)
-{
-	if (!ffmpeg_codec_id)
-		return "unknown";
-	if (strcmp(ffmpeg_codec_id, "aac") == 0 ||
-	    strcmp(ffmpeg_codec_id, "libfdk_aac") == 0)
-		return "AAC";
-	if (strcmp(ffmpeg_codec_id, "libmp3lame") == 0 ||
-	    strcmp(ffmpeg_codec_id, "mp3") == 0)
-		return "mp3";
-	if (strcmp(ffmpeg_codec_id, "libopus") == 0 ||
-	    strcmp(ffmpeg_codec_id, "opus") == 0)
-		return "opus";
-	if (strcmp(ffmpeg_codec_id, "flac") == 0)
-		return "flac";
-	if (strcmp(ffmpeg_codec_id, "alac") == 0)
-		return "alac";
-	if (strcmp(ffmpeg_codec_id, "ac3") == 0)
-		return "ac3";
-	if (strcmp(ffmpeg_codec_id, "eac3") == 0)
-		return "eac3";
-	if (strcmp(ffmpeg_codec_id, "libvorbis") == 0 ||
-	    strcmp(ffmpeg_codec_id, "vorbis") == 0)
-		return "vorbis";
-	if (strcmp(ffmpeg_codec_id, "pcm_s16le") == 0)
-		return "pcm_s16le";
-	if (strcmp(ffmpeg_codec_id, "pcm_s24le") == 0)
-		return "pcm_s24le";
-	if (strcmp(ffmpeg_codec_id, "pcm_f32le") == 0)
-		return "pcm_f32le";
-	return ffmpeg_codec_id;
-}
-
 /* ── OBS音频格式与FFmpeg采样格式转换 ───────────────────── */
 static inline enum audio_format convert_ffmpeg_sample_format(enum AVSampleFormat fmt)
 {
@@ -260,8 +226,6 @@ static void *enc_create(obs_data_t *settings, obs_encoder_t *encoder)
 		warn("Couldn't find encoder '%s'", codec_id);
 		goto fail;
 	}
-
-	obs_encoder_set_codec(encoder, ffmpeg_to_obs_codec(codec_id));
 
 	enc->context = avcodec_alloc_context3(enc->codec);
 	if (!enc->context) {
@@ -586,8 +550,6 @@ static bool enc_update(void *data, obs_data_t *settings)
 	const char *codec_id = obs_data_get_string(settings, "codec");
 	bool lossless = is_lossless_codec(codec_id);
 	bool use_quality = obs_data_get_bool(settings, "use_quality");
-
-	obs_encoder_set_codec(enc->encoder, ffmpeg_to_obs_codec(codec_id));
 
 	if (!use_quality && !lossless) {
 		enc->bitrate = (int)obs_data_get_int(settings, "bitrate");
