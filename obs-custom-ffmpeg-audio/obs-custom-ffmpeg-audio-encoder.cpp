@@ -484,6 +484,24 @@ static obs_properties_t *enc_properties(void *data)
 	void *iter = nullptr;
 	std::vector<const char *> added;
 
+#ifdef _WIN32
+	__try {
+		while ((codec = av_codec_iterate(&iter))) {
+			if (!av_codec_is_encoder(codec))
+				continue;
+			if (codec->type != AVMEDIA_TYPE_AUDIO)
+				continue;
+
+			const char *name = codec->name;
+			obs_property_list_add_string(prop, name, name);
+			added.push_back(name);
+		}
+	}
+	__except (EXCEPTION_EXECUTE_HANDLER) {
+		blog(LOG_WARNING,
+		     "[Custom FFmpeg Audio] Failed to iterate FFmpeg codecs, falling back to known codecs only");
+	}
+#else
 	while ((codec = av_codec_iterate(&iter))) {
 		if (!av_codec_is_encoder(codec))
 			continue;
@@ -494,6 +512,7 @@ static obs_properties_t *enc_properties(void *data)
 		obs_property_list_add_string(prop, name, name);
 		added.push_back(name);
 	}
+#endif
 
 	for (const codec_entry *e = known_codecs; e->name; e++) {
 		bool found = false;
