@@ -25,12 +25,12 @@ if(WIN32)
     if(NOT FFmpeg_${_comp}_IMPLIB MATCHES "-NOTFOUND$" AND FFmpeg_${_comp}_IMPLIB)
       set(_ffmpeg_${_comp}_lib "${FFmpeg_${_comp}_IMPLIB}")
     else()
+      get_filename_component(_ffmpeg_hint "${FFmpeg_avcodec_INCLUDE_DIR}" DIRECTORY)
       find_library(_ffmpeg_${_comp}_lib
         NAMES ${_comp} lib${_comp}
-        HINTS ${CMAKE_PREFIX_PATH}
-              ${FFmpeg_${_comp}_INCLUDE_DIR}/../lib
-              ${FFmpeg_avutil_INCLUDE_DIR}/../lib
-        PATH_SUFFIXES lib
+        HINTS "${_ffmpeg_hint}/lib"
+              "${_ffmpeg_hint}/bin"
+              ${CMAKE_PREFIX_PATH}
       )
       if(NOT _ffmpeg_${_comp}_lib)
         find_library(_ffmpeg_${_comp}_lib
@@ -39,9 +39,10 @@ if(WIN32)
       endif()
     endif()
     if(NOT _ffmpeg_${_comp}_lib OR _ffmpeg_${_comp}_lib MATCHES "-NOTFOUND$")
-      message(FATAL_ERROR "Could not find FFmpeg ${_comp} library. "
-        "FFmpeg_${_comp}_IMPLIB=${FFmpeg_${_comp}_IMPLIB} "
-        "CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}")
+      message(FATAL_ERROR "Cannot find FFmpeg ${_comp} library. "
+        "FFmpeg_${_comp}_IMPLIB='${FFmpeg_${_comp}_IMPLIB}' "
+        "CMAKE_PREFIX_PATH='${CMAKE_PREFIX_PATH}' "
+        "Hints tried: ${_ffmpeg_hint}/lib, ${_ffmpeg_hint}/bin")
     endif()
     message(STATUS "Linking FFmpeg ${_comp}: ${_ffmpeg_${_comp}_lib}")
   endforeach()
@@ -50,6 +51,8 @@ if(WIN32)
     OBS::libobs
     FFmpeg::avcodec
     FFmpeg::avutil
+  )
+  target_link_libraries(obs-custom-ffmpeg-audio PRIVATE
     "${_ffmpeg_avcodec_lib}"
     "${_ffmpeg_avutil_lib}"
   )
