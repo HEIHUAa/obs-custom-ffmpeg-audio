@@ -1,4 +1,5 @@
 #include "obs-custom-ffmpeg-audio-encoder.hpp"
+#include "obs-custom-ffmpeg-audio-config-dialog.hpp"
 #include <util/dstr.h>
 #include <algorithm>
 #include <cstring>
@@ -13,11 +14,6 @@
 #define debug(format, ...) do_log(LOG_DEBUG,   format, ##__VA_ARGS__)
 
 /* ── 预定义编码器列表 ──────────────────────────────────────── */
-struct codec_entry {
-	const char *name;
-	const char *codec_id;
-	bool lossless;
-};
 
 static const codec_entry aac_codecs[] = {
 	{"AAC (FFmpeg)",                "aac",           false},
@@ -69,15 +65,8 @@ static const codec_entry pcm_codecs[] = {
 };
 
 /* ── 编码器家族定义 ──────────────────────────────────────── */
-struct encoder_family {
-	const char *id;
-	const char *codec;
-	const char *display_name;
-	const codec_entry *entries;
-	const char *default_codec_id;
-};
 
-static const encoder_family families[] = {
+const encoder_family families[] = {
 	{"custom_ffmpeg_audio_aac",    "aac",       "Custom FFmpeg Audio (AAC)",    aac_codecs,   "aac"},
 	{"custom_ffmpeg_audio_opus",   "opus",      "Custom FFmpeg Audio (Opus)",   opus_codecs,  "libopus"},
 	{"custom_ffmpeg_audio_flac",   "flac",      "Custom FFmpeg Audio (FLAC)",   flac_codecs,  "flac"},
@@ -155,6 +144,7 @@ static void enc_defaults(obs_data_t *settings)
 {
 	blog(LOG_INFO, "[Custom FFmpeg Audio] enc_defaults called");
 
+	obs_data_set_default_string(settings, "codec", "libopus");
 	obs_data_set_default_int(settings, "bitrate", 128);
 	obs_data_set_default_string(settings, "sample_rate", "auto");
 	obs_data_set_default_int(settings, "quality", 3);
@@ -266,6 +256,31 @@ static void *enc_create(obs_data_t *settings, obs_encoder_t *encoder)
 	blog(LOG_INFO, "[Custom FFmpeg Audio] enc_create for family: %s, codec_id default: %s",
 	     enc->family ? enc->family->id : "NULL",
 	     enc->family ? enc->family->default_codec_id : "NULL");
+
+	{
+		std::string cfg_codec, cfg_sample_rate, cfg_custom_options;
+		bool cfg_use_quality = false;
+		int cfg_quality = 5;
+		int cfg_strict = -2;
+
+		load_encoder_config(enc->family->id, cfg_codec, cfg_use_quality,
+				     cfg_quality, cfg_sample_rate,
+				     cfg_custom_options, cfg_strict);
+
+		if (!cfg_codec.empty()) {
+			obs_data_set_string(settings, "codec", cfg_codec.c_str());
+			blog(LOG_INFO, "[Custom FFmpeg Audio] config override: codec=%s", cfg_codec.c_str());
+		}
+		if (!cfg_sample_rate.empty()) {
+			obs_data_set_string(settings, "sample_rate", cfg_sample_rate.c_str());
+			blog(LOG_INFO, "[Custom FFmpeg Audio] config override: sample_rate=%s", cfg_sample_rate.c_str());
+		}
+		obs_data_set_bool(settings, "use_quality", cfg_use_quality);
+		obs_data_set_int(settings, "quality", cfg_quality);
+		if (!cfg_custom_options.empty())
+			obs_data_set_string(settings, "custom_options", cfg_custom_options.c_str());
+		obs_data_set_int(settings, "strict_compliance", cfg_strict);
+	}
 
 	const char *codec_id = obs_data_get_string(settings, "codec");
 	if (!codec_id || !*codec_id) {

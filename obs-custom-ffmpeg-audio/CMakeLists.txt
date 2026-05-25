@@ -11,6 +11,8 @@ target_sources(
   obs-custom-ffmpeg-audio-plugin-main.cpp
   obs-custom-ffmpeg-audio-encoder.cpp
   obs-custom-ffmpeg-audio-encoder.hpp
+  obs-custom-ffmpeg-audio-config-dialog.cpp
+  obs-custom-ffmpeg-audio-config-dialog.hpp
 )
 
 if(WIN32)

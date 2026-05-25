@@ -11,7 +11,21 @@ extern "C" {
 #include <libavutil/channel_layout.h>
 }
 
-struct encoder_family;
+struct codec_entry {
+	const char *name;
+	const char *codec_id;
+	bool lossless;
+};
+
+struct encoder_family {
+	const char *id;
+	const char *codec;
+	const char *display_name;
+	const codec_entry *entries;
+	const char *default_codec_id;
+};
+
+extern const encoder_family families[];
 
 struct custom_ffmpeg_audio_encoder {
 	obs_encoder_t *encoder;
