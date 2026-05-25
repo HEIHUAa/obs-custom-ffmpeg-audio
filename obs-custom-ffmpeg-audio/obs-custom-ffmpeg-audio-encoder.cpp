@@ -151,20 +151,10 @@ static const char *enc_get_name(void *type_data)
 	return family->display_name;
 }
 
-static void enc_defaults(obs_data_t *settings, void *data)
+static void enc_defaults(obs_data_t *settings)
 {
-	blog(LOG_INFO, "[Custom FFmpeg Audio] enc_defaults called, data=%p", data);
+	blog(LOG_INFO, "[Custom FFmpeg Audio] enc_defaults called");
 
-	const encoder_family *family = &families[0];
-
-	if (data) {
-		auto *enc = static_cast<custom_ffmpeg_audio_encoder *>(data);
-		if (enc->family) {
-			family = enc->family;
-		}
-	}
-
-	obs_data_set_default_string(settings, "codec", family->default_codec_id);
 	obs_data_set_default_int(settings, "bitrate", 128);
 	obs_data_set_default_string(settings, "sample_rate", "auto");
 	obs_data_set_default_int(settings, "quality", 3);
@@ -280,6 +270,7 @@ static void *enc_create(obs_data_t *settings, obs_encoder_t *encoder)
 	const char *codec_id = obs_data_get_string(settings, "codec");
 	if (!codec_id || !*codec_id) {
 		codec_id = enc->family->default_codec_id;
+		obs_data_set_string(settings, "codec", codec_id);
 		blog(LOG_INFO, "[Custom FFmpeg Audio] codec was empty, using default: %s", codec_id);
 	}
 	enc->bitrate = (int)obs_data_get_int(settings, "bitrate");
