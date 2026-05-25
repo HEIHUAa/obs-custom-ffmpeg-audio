@@ -179,8 +179,21 @@ CustomFFmpegAudioConfigDialog::CustomFFmpegAudioConfigDialog(QWidget *parent)
 	btn_layout->addWidget(m_cancel);
 	main_layout->addLayout(btn_layout);
 
-	if (m_family_combo->count() > 0)
-		on_family_changed(0);
+	int selected_idx = 0;
+	if (m_family_combo->count() > 0) {
+		config_t *cfg = open_encoder_config();
+		if (cfg) {
+			const char *saved = config_get_string(cfg, "General", "selected");
+			if (saved && *saved) {
+				int idx = m_family_combo->findData(QString::fromUtf8(saved));
+				if (idx >= 0)
+					selected_idx = idx;
+			}
+			config_close(cfg);
+		}
+		m_family_combo->setCurrentIndex(selected_idx);
+		on_family_changed(selected_idx);
+	}
 }
 
 /* ── 族切换 ──────────────────────────────────────────────── */
