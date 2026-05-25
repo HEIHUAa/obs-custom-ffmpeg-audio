@@ -10,9 +10,16 @@
 
 /* ── 配置读写 ──────────────────────────────────────────────── */
 
+static obs_module_t *g_config_module = nullptr;
+
+void set_encoder_config_module(obs_module_t *mod)
+{
+	g_config_module = mod;
+}
+
 config_t *open_encoder_config()
 {
-	char *path = obs_module_get_config_path(obs_current_module(), "config.ini");
+	char *path = obs_module_get_config_path(g_config_module, "config.ini");
 	config_t *config = nullptr;
 	int ret = config_open(&config, path, CONFIG_OPEN_ALWAYS);
 	bfree(path);

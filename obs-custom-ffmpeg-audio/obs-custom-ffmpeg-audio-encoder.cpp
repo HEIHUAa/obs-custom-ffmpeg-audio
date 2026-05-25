@@ -154,15 +154,20 @@ static inline std::string ffmpeg_error_str(int errnum)
 
 static const char *enc_get_name(void *type_data)
 {
-	UNUSED_PARAMETER(type_data);
+	const encoder_family *family = (const encoder_family *)type_data;
+	if (family && family->display_name)
+		return family->display_name;
 	return "Custom FFmpeg Audio";
 }
 
-static void enc_defaults(obs_data_t *settings)
+static void enc_defaults2(obs_data_t *settings, void *type_data)
 {
-	blog(LOG_INFO, "[Custom FFmpeg Audio] enc_defaults called");
+	const encoder_family *family = (const encoder_family *)type_data;
+	blog(LOG_INFO, "[Custom FFmpeg Audio] enc_defaults called for %s",
+	     family ? family->id : "unknown");
 
-	obs_data_set_default_string(settings, "codec", "libopus");
+	obs_data_set_default_string(settings, "codec",
+		family ? family->default_codec_id : "aac");
 	obs_data_set_default_int(settings, "bitrate", 128);
 	obs_data_set_default_string(settings, "sample_rate", "auto");
 	obs_data_set_default_int(settings, "quality", 3);
@@ -282,7 +287,12 @@ static void *enc_create(obs_data_t *settings, obs_encoder_t *encoder)
 {
 	auto *enc = new custom_ffmpeg_audio_encoder;
 	enc->encoder = encoder;
-	enc->family = get_selected_encoder_family();
+
+	const encoder_family *family = (const encoder_family *)
+		obs_encoder_get_type_data(encoder);
+	if (!family)
+		family = &families[0];
+	enc->family = family;
 
 	blog(LOG_INFO, "[Custom FFmpeg Audio] enc_create, selected family: %s, default codec: %s",
 	     enc->family->id, enc->family->default_codec_id);
@@ -577,9 +587,10 @@ static bool quality_mode_modified(obs_properties_t *props, obs_property_t *prop,
 static obs_properties_t *enc_properties2(void *data, void *type_data)
 {
 	UNUSED_PARAMETER(data);
-	UNUSED_PARAMETER(type_data);
 
-	const encoder_family *family = get_selected_encoder_family();
+	const encoder_family *family = (const encoder_family *)type_data;
+	if (!family)
+		family = &families[0];
 	blog(LOG_INFO, "[Custom FFmpeg Audio] enc_properties2 using family: %s", family->id);
 
 	obs_properties_t *props = obs_properties_create();
@@ -658,21 +669,26 @@ static bool enc_update(void *data, obs_data_t *settings)
 
 void register_custom_ffmpeg_audio_encoders(void)
 {
-	struct obs_encoder_info info = {};
-	info.id = "custom_ffmpeg_audio";
-	info.type = OBS_ENCODER_AUDIO;
-	info.codec = "aac";
-	info.get_name = enc_get_name;
-	info.create = enc_create;
-	info.destroy = enc_destroy;
-	info.encode = enc_encode;
-	info.get_frame_size = enc_frame_size;
-	info.get_defaults = enc_defaults;
-	info.get_properties2 = enc_properties2;
-	info.update = enc_update;
-	info.get_extra_data = enc_extra_data;
-	info.get_audio_info = enc_audio_info;
-	info.get_priming_samples = enc_initial_padding;
-	info.type_data = nullptr;
-	obs_register_encoder_s(&info, sizeof(info));
+	for (const encoder_family *f = families; f->id; f++) {
+		struct obs_encoder_info info = {};
+		info.id = f->id;
+		info.type = OBS_ENCODER_AUDIO;
+		info.codec = f->codec;
+		info.get_name = enc_get_name;
+		info.create = enc_create;
+		info.destroy = enc_destroy;
+		info.encode = enc_encode;
+		info.get_frame_size = enc_frame_size;
+		info.get_defaults2 = enc_defaults2;
+		info.get_properties2 = enc_properties2;
+		info.update = enc_update;
+		info.get_extra_data = enc_extra_data;
+		info.get_audio_info = enc_audio_info;
+		info.get_priming_samples = enc_initial_padding;
+		info.type_data = (void *)f;
+		obs_register_encoder_s(&info, sizeof(info));
+
+		blog(LOG_INFO, "[Custom FFmpeg Audio] registered encoder: %s (codec: %s)",
+		     f->id, f->codec);
+	}
 }

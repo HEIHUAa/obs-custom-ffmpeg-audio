@@ -12,6 +12,7 @@
 struct encoder_family;
 
 config_t *open_encoder_config(void);
+void set_encoder_config_module(obs_module_t *mod);
 
 class CustomFFmpegAudioConfigDialog : public QDialog {
 	Q_OBJECT

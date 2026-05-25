@@ -17,6 +17,7 @@ extern void register_custom_ffmpeg_audio_encoders(void);
 
 bool obs_module_load(void)
 {
+	set_encoder_config_module(obs_current_module());
 	register_custom_ffmpeg_audio_encoders();
 
 	obs_frontend_push_ui_translation(obs_module_get_string);
