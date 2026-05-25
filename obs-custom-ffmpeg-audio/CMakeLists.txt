@@ -66,9 +66,10 @@ else()
   target_link_libraries(obs-custom-ffmpeg-audio PRIVATE OBS::libobs FFmpeg::avcodec FFmpeg::avutil Qt6::Widgets Qt6::Core)
 endif()
 
-if(TARGET obs-frontend-api)
-  target_link_libraries(obs-custom-ffmpeg-audio PRIVATE obs-frontend-api)
-endif()
+target_include_directories(obs-custom-ffmpeg-audio PRIVATE
+  "${CMAKE_SOURCE_DIR}/frontend/obs-frontend-api"
+)
+target_link_libraries(obs-custom-ffmpeg-audio PRIVATE obs-frontend-api)
 
 set_target_properties(obs-custom-ffmpeg-audio PROPERTIES
   FOLDER "plugins/obs-custom-ffmpeg-audio"
