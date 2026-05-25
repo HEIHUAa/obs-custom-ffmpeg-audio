@@ -1,7 +1,5 @@
 #include "obs-custom-ffmpeg-audio-encoder.hpp"
-#include "obs-custom-ffmpeg-audio-config-dialog.hpp"
 #include <util/dstr.h>
-#include <algorithm>
 #include <cstring>
 #include <cstdlib>
 
@@ -78,15 +76,6 @@ const encoder_family families[] = {
 	{nullptr, nullptr, nullptr, nullptr, nullptr},
 };
 
-static const encoder_family *find_family_by_id(const char *id)
-{
-	for (const encoder_family *f = families; f->id; f++) {
-		if (strcmp(f->id, id) == 0)
-			return f;
-	}
-	return &families[0];
-}
-
 static bool is_lossless_codec(const char *codec_id)
 {
 	if (!codec_id)
@@ -98,23 +87,6 @@ static bool is_lossless_codec(const char *codec_id)
 		}
 	}
 	return false;
-}
-
-const encoder_family *get_selected_encoder_family(void)
-{
-	config_t *config = open_encoder_config();
-	if (!config)
-		return &families[0];
-
-	const char *selected = config_get_string(config, "General", "selected");
-	config_close(config);
-
-	if (selected && *selected) {
-		const encoder_family *f = find_family_by_id(selected);
-		if (f && f->id)
-			return f;
-	}
-	return &families[0];
 }
 
 /* ── OBS音频格式与FFmpeg采样格式转换 ───────────────────── */
