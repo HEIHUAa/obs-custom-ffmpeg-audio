@@ -539,21 +539,17 @@ static bool quality_mode_modified(obs_properties_t *props, obs_property_t *prop,
 	return codec_modified(props, prop, settings);
 }
 
-static obs_properties_t *enc_properties(void *data)
+static obs_properties_t *enc_properties2(void *data, void *type_data)
 {
-	blog(LOG_INFO, "[Custom FFmpeg Audio] enc_properties called, data=%p", data);
+	blog(LOG_INFO, "[Custom FFmpeg Audio] enc_properties2 called, data=%p, type_data=%p", data, type_data);
 
-	const encoder_family *family = &families[0];
-
-	if (data) {
-		auto *enc = static_cast<custom_ffmpeg_audio_encoder *>(data);
-		if (enc->family) {
-			family = enc->family;
-			blog(LOG_INFO, "[Custom FFmpeg Audio] enc_properties using family: %s", family->id);
-		}
-	} else {
-		blog(LOG_WARNING, "[Custom FFmpeg Audio] enc_properties: data is NULL!");
+	if (!type_data) {
+		blog(LOG_WARNING, "[Custom FFmpeg Audio] enc_properties2: type_data is NULL!");
+		return obs_properties_create();
 	}
+
+	const encoder_family *family = static_cast<const encoder_family *>(type_data);
+	blog(LOG_INFO, "[Custom FFmpeg Audio] enc_properties2 using family: %s", family->id);
 
 	obs_properties_t *props = obs_properties_create();
 	obs_property_t *prop;
@@ -642,7 +638,7 @@ void register_custom_ffmpeg_audio_encoders(void)
 		info.encode = enc_encode;
 		info.get_frame_size = enc_frame_size;
 		info.get_defaults = enc_defaults;
-		info.get_properties = enc_properties;
+		info.get_properties2 = enc_properties2;
 		info.update = enc_update;
 		info.get_extra_data = enc_extra_data;
 		info.get_audio_info = enc_audio_info;
