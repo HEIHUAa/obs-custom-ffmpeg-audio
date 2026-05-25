@@ -7,6 +7,7 @@
 #include <QTextEdit>
 #include <QPushButton>
 #include <QLabel>
+#include <obs-module.h>
 #include <util/config-file.h>
 
 struct encoder_family;
