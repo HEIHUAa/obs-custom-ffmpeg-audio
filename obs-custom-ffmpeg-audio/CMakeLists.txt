@@ -1,3 +1,5 @@
+set(CMAKE_AUTOMOC ON)
+
 add_library(obs-custom-ffmpeg-audio MODULE)
 
 find_package(libobs CONFIG)
@@ -5,12 +7,16 @@ find_package(libobs CONFIG)
 find_package(FFmpeg REQUIRED
   COMPONENTS avcodec avutil)
 
+find_package(Qt6 REQUIRED COMPONENTS Widgets Core)
+
 target_sources(
   obs-custom-ffmpeg-audio
   PRIVATE
   obs-custom-ffmpeg-audio-plugin-main.cpp
   obs-custom-ffmpeg-audio-encoder.cpp
   obs-custom-ffmpeg-audio-encoder.hpp
+  obs-custom-ffmpeg-audio-config-dialog.cpp
+  obs-custom-ffmpeg-audio-config-dialog.hpp
 )
 
 if(WIN32)
@@ -51,14 +57,21 @@ if(WIN32)
     OBS::libobs
     FFmpeg::avcodec
     FFmpeg::avutil
+    Qt6::Widgets
+    Qt6::Core
   )
   target_link_libraries(obs-custom-ffmpeg-audio PRIVATE
     "${_ffmpeg_avcodec_lib}"
     "${_ffmpeg_avutil_lib}"
   )
 else()
-  target_link_libraries(obs-custom-ffmpeg-audio PRIVATE OBS::libobs FFmpeg::avcodec FFmpeg::avutil)
+  target_link_libraries(obs-custom-ffmpeg-audio PRIVATE OBS::libobs FFmpeg::avcodec FFmpeg::avutil Qt6::Widgets Qt6::Core)
 endif()
+
+target_include_directories(obs-custom-ffmpeg-audio PRIVATE
+  "${CMAKE_SOURCE_DIR}/frontend/obs-frontend-api"
+)
+target_link_libraries(obs-custom-ffmpeg-audio PRIVATE obs-frontend-api)
 
 set_target_properties(obs-custom-ffmpeg-audio PROPERTIES
   FOLDER "plugins/obs-custom-ffmpeg-audio"

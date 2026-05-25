@@ -1,6 +1,7 @@
 #pragma once
 
 #include <obs-module.h>
+#include <util/config-file.h>
 #include <string>
 #include <vector>
 
@@ -58,3 +59,6 @@ struct custom_ffmpeg_audio_encoder {
 };
 
 void register_custom_ffmpeg_audio_encoders(void);
+
+void set_encoder_config_module(obs_module_t *mod);
+config_t *open_encoder_config(void);

@@ -278,7 +278,17 @@ static void *enc_create(obs_data_t *settings, obs_encoder_t *encoder)
 	enc->bitrate = (int)obs_data_get_int(settings, "bitrate");
 	enc->use_quality = obs_data_get_bool(settings, "use_quality");
 	enc->quality = (int)obs_data_get_int(settings, "quality");
-	enc->custom_options = obs_data_get_string(settings, "custom_options");
+	{
+		config_t *cfg = open_encoder_config();
+		if (cfg) {
+			const char *saved = config_get_string(cfg, enc->family->id, "custom_options");
+			enc->custom_options = (saved && *saved) ? saved
+				: obs_data_get_string(settings, "custom_options");
+			config_close(cfg);
+		} else {
+			enc->custom_options = obs_data_get_string(settings, "custom_options");
+		}
+	}
 	enc->codec_name = codec_id;
 
 	audio_t *audio = nullptr;
@@ -666,4 +676,22 @@ void register_custom_ffmpeg_audio_encoders(void)
 		blog(LOG_INFO, "[Custom FFmpeg Audio] registered encoder: %s (codec: %s)",
 		     f->id, f->codec);
 	}
+}
+
+static obs_module_t *g_config_module = nullptr;
+
+void set_encoder_config_module(obs_module_t *mod)
+{
+	g_config_module = mod;
+}
+
+config_t *open_encoder_config(void)
+{
+	char *path = obs_module_get_config_path(g_config_module, "config.ini");
+	if (!path) return nullptr;
+	config_t *config = nullptr;
+	int ret = config_open(&config, path, CONFIG_OPEN_ALWAYS);
+	bfree(path);
+	if (ret != CONFIG_SUCCESS) return nullptr;
+	return config;
 }
