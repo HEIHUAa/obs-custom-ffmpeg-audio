@@ -78,7 +78,7 @@ struct encoder_family {
 };
 
 static const encoder_family families[] = {
-	{"custom_ffmpeg_audio_aac",    "AAC",       "Custom FFmpeg Audio (AAC)",    aac_codecs,   "aac"},
+	{"custom_ffmpeg_audio_aac",    "aac",       "Custom FFmpeg Audio (AAC)",    aac_codecs,   "aac"},
 	{"custom_ffmpeg_audio_opus",   "opus",      "Custom FFmpeg Audio (Opus)",   opus_codecs,  "libopus"},
 	{"custom_ffmpeg_audio_flac",   "flac",      "Custom FFmpeg Audio (FLAC)",   flac_codecs,  "flac"},
 	{"custom_ffmpeg_audio_alac",   "alac",      "Custom FFmpeg Audio (ALAC)",   alac_codecs,  "alac"},
@@ -151,9 +151,19 @@ static const char *enc_get_name(void *type_data)
 	return family->display_name;
 }
 
-static void enc_defaults2(obs_data_t *settings, void *type_data)
+static void enc_defaults(obs_data_t *settings, void *data)
 {
-	const encoder_family *family = static_cast<const encoder_family *>(type_data);
+	blog(LOG_INFO, "[Custom FFmpeg Audio] enc_defaults called, data=%p", data);
+
+	const encoder_family *family = &families[0];
+
+	if (data) {
+		auto *enc = static_cast<custom_ffmpeg_audio_encoder *>(data);
+		if (enc->family) {
+			family = enc->family;
+		}
+	}
+
 	obs_data_set_default_string(settings, "codec", family->default_codec_id);
 	obs_data_set_default_int(settings, "bitrate", 128);
 	obs_data_set_default_string(settings, "sample_rate", "auto");
@@ -263,7 +273,15 @@ static void *enc_create(obs_data_t *settings, obs_encoder_t *encoder)
 	enc->encoder = encoder;
 	enc->family = find_family_by_id(obs_encoder_get_id(encoder));
 
+	blog(LOG_INFO, "[Custom FFmpeg Audio] enc_create for family: %s, codec_id default: %s",
+	     enc->family ? enc->family->id : "NULL",
+	     enc->family ? enc->family->default_codec_id : "NULL");
+
 	const char *codec_id = obs_data_get_string(settings, "codec");
+	if (!codec_id || !*codec_id) {
+		codec_id = enc->family->default_codec_id;
+		blog(LOG_INFO, "[Custom FFmpeg Audio] codec was empty, using default: %s", codec_id);
+	}
 	enc->bitrate = (int)obs_data_get_int(settings, "bitrate");
 	enc->use_quality = obs_data_get_bool(settings, "use_quality");
 	enc->quality = (int)obs_data_get_int(settings, "quality");
@@ -530,11 +548,21 @@ static bool quality_mode_modified(obs_properties_t *props, obs_property_t *prop,
 	return codec_modified(props, prop, settings);
 }
 
-static obs_properties_t *enc_properties2(void *data, void *type_data)
+static obs_properties_t *enc_properties(void *data)
 {
-	UNUSED_PARAMETER(data);
+	blog(LOG_INFO, "[Custom FFmpeg Audio] enc_properties called, data=%p", data);
 
-	const encoder_family *family = static_cast<const encoder_family *>(type_data);
+	const encoder_family *family = &families[0];
+
+	if (data) {
+		auto *enc = static_cast<custom_ffmpeg_audio_encoder *>(data);
+		if (enc->family) {
+			family = enc->family;
+			blog(LOG_INFO, "[Custom FFmpeg Audio] enc_properties using family: %s", family->id);
+		}
+	} else {
+		blog(LOG_WARNING, "[Custom FFmpeg Audio] enc_properties: data is NULL!");
+	}
 
 	obs_properties_t *props = obs_properties_create();
 	obs_property_t *prop;
@@ -622,8 +650,8 @@ void register_custom_ffmpeg_audio_encoders(void)
 		info.destroy = enc_destroy;
 		info.encode = enc_encode;
 		info.get_frame_size = enc_frame_size;
-		info.get_defaults2 = enc_defaults2;
-		info.get_properties2 = enc_properties2;
+		info.get_defaults = enc_defaults;
+		info.get_properties = enc_properties;
 		info.update = enc_update;
 		info.get_extra_data = enc_extra_data;
 		info.get_audio_info = enc_audio_info;
