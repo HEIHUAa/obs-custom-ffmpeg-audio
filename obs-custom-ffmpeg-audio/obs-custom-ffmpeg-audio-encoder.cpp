@@ -644,6 +644,8 @@ static bool enc_update(void *data, obs_data_t *settings)
 void register_custom_ffmpeg_audio_encoders(void)
 {
 	for (const auto &family : families) {
+		if (!family.id)
+			break;
 		struct obs_encoder_info info = {};
 		info.id = family.id;
 		info.type = OBS_ENCODER_AUDIO;
