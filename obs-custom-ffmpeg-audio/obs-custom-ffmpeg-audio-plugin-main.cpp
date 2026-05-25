@@ -19,16 +19,15 @@ bool obs_module_load(void)
 {
 	register_custom_ffmpeg_audio_encoders();
 
-	obs_frontend_push_ui_translation(obs_current_module());
+	obs_frontend_push_ui_translation(obs_module_get_string);
 
 	QWidget *parent = static_cast<QWidget *>(obs_frontend_get_main_window());
-	QAction *action = new QAction(obs_module_text("CustomFFmpegAudio.Settings"), nullptr);
+	QAction *action = (QAction *)obs_frontend_add_tools_menu_qaction(
+		obs_module_text("CustomFFmpegAudio.Settings"));
 	QObject::connect(action, &QAction::triggered, [parent]() {
 		CustomFFmpegAudioConfigDialog dialog(parent);
 		dialog.exec();
 	});
-	obs_frontend_add_tools_menu_qaction(
-		obs_module_text("CustomFFmpegAudio.Settings"), action);
 
 	obs_frontend_pop_ui_translation();
 
