@@ -7,9 +7,9 @@
 #include <QTextEdit>
 #include <QPushButton>
 #include <QLabel>
+#include <util/config-file.h>
 
 struct encoder_family;
-struct config_t;
 
 config_t *open_encoder_config(void);
 
