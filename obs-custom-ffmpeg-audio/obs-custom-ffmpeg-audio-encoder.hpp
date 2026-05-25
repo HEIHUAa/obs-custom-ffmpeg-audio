@@ -11,8 +11,11 @@ extern "C" {
 #include <libavutil/channel_layout.h>
 }
 
+struct encoder_family;
+
 struct custom_ffmpeg_audio_encoder {
 	obs_encoder_t *encoder;
+	const encoder_family *family;
 
 	const AVCodec *codec;
 	AVCodecContext *context;
@@ -40,4 +43,4 @@ struct custom_ffmpeg_audio_encoder {
 	int quality;
 };
 
-void register_custom_ffmpeg_audio_encoder();
+void register_custom_ffmpeg_audio_encoders(void);

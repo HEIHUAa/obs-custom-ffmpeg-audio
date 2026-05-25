@@ -8,10 +8,10 @@ MODULE_EXPORT const char *obs_module_description(void)
 	return "Custom FFmpeg Audio Encoder - supports any FFmpeg audio codec with customizable options";
 }
 
-extern struct obs_encoder_info custom_ffmpeg_audio_encoder_info;
+extern void register_custom_ffmpeg_audio_encoders(void);
 
 bool obs_module_load(void)
 {
-	obs_register_encoder(&custom_ffmpeg_audio_encoder_info);
+	register_custom_ffmpeg_audio_encoders();
 	return true;
 }

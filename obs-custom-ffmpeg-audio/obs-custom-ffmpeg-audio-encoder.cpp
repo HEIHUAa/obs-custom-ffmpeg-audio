@@ -19,21 +19,47 @@ struct codec_entry {
 	bool lossless;
 };
 
-static const codec_entry known_codecs[] = {
+static const codec_entry aac_codecs[] = {
 	{"AAC (FFmpeg)",                "aac",           false},
 	{"AAC (libfdk)",                "libfdk_aac",    false},
-	{"MP3 (libmp3lame)",            "libmp3lame",    false},
+	{nullptr, nullptr, false}
+};
+
+static const codec_entry opus_codecs[] = {
 	{"Opus (libopus)",              "libopus",       false},
+	{nullptr, nullptr, false}
+};
+
+static const codec_entry flac_codecs[] = {
 	{"FLAC (lossless)",             "flac",          true},
+	{nullptr, nullptr, false}
+};
+
+static const codec_entry alac_codecs[] = {
 	{"ALAC (lossless)",             "alac",          true},
+	{nullptr, nullptr, false}
+};
+
+static const codec_entry mp3_codecs[] = {
+	{"MP3 (libmp3lame)",            "libmp3lame",    false},
+	{nullptr, nullptr, false}
+};
+
+static const codec_entry ac3_codecs[] = {
+	{"AC3",                         "ac3",           false},
+	{"E-AC3",                       "eac3",          false},
+	{nullptr, nullptr, false}
+};
+
+static const codec_entry vorbis_codecs[] = {
+	{"Vorbis (libvorbis)",          "libvorbis",     false},
+	{nullptr, nullptr, false}
+};
+
+static const codec_entry pcm_codecs[] = {
 	{"PCM 16-bit",                  "pcm_s16le",     true},
 	{"PCM 24-bit",                  "pcm_s24le",     true},
 	{"PCM 32-bit float",            "pcm_f32le",     true},
-	{"Vorbis (libvorbis)",          "libvorbis",     false},
-	{"AC3",                         "ac3",           false},
-	{"E-AC3",                       "eac3",          false},
-	{"MP2 (libtwolame)",            "libtwolame",    false},
-	{"WMA v2",                      "wmav2",         false},
 	{"PCM unsigned 8-bit",          "pcm_u8",        true},
 	{"PCM A-law",                   "pcm_alaw",      true},
 	{"PCM mu-law",                  "pcm_mulaw",     true},
@@ -41,6 +67,48 @@ static const codec_entry known_codecs[] = {
 	{"G.722",                       "g722",          false},
 	{nullptr, nullptr, false}
 };
+
+/* ── 编码器家族定义 ──────────────────────────────────────── */
+struct encoder_family {
+	const char *id;
+	const char *codec;
+	const char *display_name;
+	const codec_entry *entries;
+	const char *default_codec_id;
+};
+
+static const encoder_family families[] = {
+	{"custom_ffmpeg_audio_aac",    "AAC",       "Custom FFmpeg Audio (AAC)",    aac_codecs,   "aac"},
+	{"custom_ffmpeg_audio_opus",   "opus",      "Custom FFmpeg Audio (Opus)",   opus_codecs,  "libopus"},
+	{"custom_ffmpeg_audio_flac",   "flac",      "Custom FFmpeg Audio (FLAC)",   flac_codecs,  "flac"},
+	{"custom_ffmpeg_audio_alac",   "alac",      "Custom FFmpeg Audio (ALAC)",   alac_codecs,  "alac"},
+	{"custom_ffmpeg_audio_mp3",    "mp3",       "Custom FFmpeg Audio (MP3)",    mp3_codecs,   "libmp3lame"},
+	{"custom_ffmpeg_audio_ac3",    "ac3",       "Custom FFmpeg Audio (AC3)",    ac3_codecs,   "ac3"},
+	{"custom_ffmpeg_audio_vorbis", "vorbis",    "Custom FFmpeg Audio (Vorbis)", vorbis_codecs,"libvorbis"},
+	{"custom_ffmpeg_audio_pcm",    "pcm_s16le", "Custom FFmpeg Audio (PCM)",    pcm_codecs,   "pcm_s16le"},
+};
+
+static const encoder_family *find_family_by_id(const char *id)
+{
+	for (const auto &f : families) {
+		if (strcmp(f.id, id) == 0)
+			return &f;
+	}
+	return &families[0];
+}
+
+static bool is_lossless_codec(const char *codec_id)
+{
+	if (!codec_id)
+		return false;
+	for (const auto &f : families) {
+		for (const codec_entry *e = f.entries; e->name; e++) {
+			if (strcmp(e->codec_id, codec_id) == 0)
+				return e->lossless;
+		}
+	}
+	return false;
+}
 
 /* ── OBS音频格式与FFmpeg采样格式转换 ───────────────────── */
 static inline enum audio_format convert_ffmpeg_sample_format(enum AVSampleFormat fmt)
@@ -79,28 +147,20 @@ static inline std::string ffmpeg_error_str(int errnum)
 
 static const char *enc_get_name(void *type_data)
 {
-	UNUSED_PARAMETER(type_data);
-	return obs_module_text("EncoderName");
+	const encoder_family *family = static_cast<const encoder_family *>(type_data);
+	return family->display_name;
 }
 
-static void enc_defaults(obs_data_t *settings)
+static void enc_defaults2(obs_data_t *settings, void *type_data)
 {
-	obs_data_set_default_string(settings, "codec", "aac");
+	const encoder_family *family = static_cast<const encoder_family *>(type_data);
+	obs_data_set_default_string(settings, "codec", family->default_codec_id);
 	obs_data_set_default_int(settings, "bitrate", 128);
 	obs_data_set_default_string(settings, "sample_rate", "auto");
 	obs_data_set_default_int(settings, "quality", 3);
 	obs_data_set_default_bool(settings, "use_quality", false);
 	obs_data_set_default_string(settings, "custom_options", "");
 	obs_data_set_default_int(settings, "strict_compliance", -2);
-}
-
-static bool is_lossless_codec(const char *codec_id)
-{
-	for (const codec_entry *e = known_codecs; e->name; e++) {
-		if (strcmp(e->codec_id, codec_id) == 0)
-			return e->lossless;
-	}
-	return false;
 }
 
 static inline int64_t rescale_ts(int64_t val, AVCodecContext *ctx, AVRational new_base)
@@ -201,6 +261,7 @@ static void *enc_create(obs_data_t *settings, obs_encoder_t *encoder)
 {
 	auto *enc = new custom_ffmpeg_audio_encoder;
 	enc->encoder = encoder;
+	enc->family = find_family_by_id(obs_encoder_get_id(encoder));
 
 	const char *codec_id = obs_data_get_string(settings, "codec");
 	enc->bitrate = (int)obs_data_get_int(settings, "bitrate");
@@ -469,23 +530,11 @@ static bool quality_mode_modified(obs_properties_t *props, obs_property_t *prop,
 	return codec_modified(props, prop, settings);
 }
 
-static void add_dynamic_ffmpeg_codecs(obs_property_t *prop)
-{
-	const AVCodec *codec = nullptr;
-	void *iter = nullptr;
-
-	while ((codec = av_codec_iterate(&iter))) {
-		if (!av_codec_is_encoder(codec))
-			continue;
-		if (codec->type != AVMEDIA_TYPE_AUDIO)
-			continue;
-		obs_property_list_add_string(prop, codec->name, codec->name);
-	}
-}
-
-static obs_properties_t *enc_properties(void *data)
+static obs_properties_t *enc_properties2(void *data, void *type_data)
 {
 	UNUSED_PARAMETER(data);
+
+	const encoder_family *family = static_cast<const encoder_family *>(type_data);
 
 	obs_properties_t *props = obs_properties_create();
 	obs_property_t *prop;
@@ -494,10 +543,8 @@ static obs_properties_t *enc_properties(void *data)
 		obs_module_text("Codec"),
 		OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_STRING);
 
-	for (const codec_entry *e = known_codecs; e->name; e++)
+	for (const codec_entry *e = family->entries; e->name; e++)
 		obs_property_list_add_string(prop, e->name, e->codec_id);
-
-	add_dynamic_ffmpeg_codecs(prop);
 
 	obs_property_set_modified_callback(prop, codec_modified);
 
@@ -537,10 +584,6 @@ static obs_properties_t *enc_properties(void *data)
 	obs_property_set_long_description(prop,
 		obs_module_text("StrictCompliance.Tooltip"));
 
-	obs_property_set_visible(obs_properties_get(props, "bitrate"), true);
-	obs_property_set_visible(obs_properties_get(props, "quality"), false);
-	obs_property_set_visible(obs_properties_get(props, "use_quality"), true);
-
 	return props;
 }
 
@@ -565,21 +608,27 @@ static bool enc_update(void *data, obs_data_t *settings)
 	return true;
 }
 
-/* ── 编码器信息结构 ─────────────────────────────────────── */
+/* ── 注册所有编码器家族 ─────────────────────────────────── */
 
-struct obs_encoder_info custom_ffmpeg_audio_encoder_info = {
-	.id             = "custom_ffmpeg_audio",
-	.type           = OBS_ENCODER_AUDIO,
-	.codec          = "AAC",
-	.get_name       = enc_get_name,
-	.create         = enc_create,
-	.destroy        = enc_destroy,
-	.encode         = enc_encode,
-	.get_frame_size = enc_frame_size,
-	.get_defaults   = enc_defaults,
-	.get_properties = enc_properties,
-	.update         = enc_update,
-	.get_extra_data = enc_extra_data,
-	.get_audio_info = enc_audio_info,
-	.get_priming_samples = enc_initial_padding,
-};
+void register_custom_ffmpeg_audio_encoders(void)
+{
+	for (const auto &family : families) {
+		struct obs_encoder_info info = {};
+		info.id = family.id;
+		info.type = OBS_ENCODER_AUDIO;
+		info.codec = family.codec;
+		info.get_name = enc_get_name;
+		info.create = enc_create;
+		info.destroy = enc_destroy;
+		info.encode = enc_encode;
+		info.get_frame_size = enc_frame_size;
+		info.get_defaults2 = enc_defaults2;
+		info.get_properties2 = enc_properties2;
+		info.update = enc_update;
+		info.get_extra_data = enc_extra_data;
+		info.get_audio_info = enc_audio_info;
+		info.get_priming_samples = enc_initial_padding;
+		info.type_data = const_cast<encoder_family *>(&family);
+		obs_register_encoder_s(&info, sizeof(info));
+	}
+}
