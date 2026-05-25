@@ -5,6 +5,8 @@ find_package(libobs CONFIG)
 find_package(FFmpeg REQUIRED
   COMPONENTS avcodec avutil)
 
+find_package(Qt6 REQUIRED COMPONENTS Widgets Core)
+
 target_sources(
   obs-custom-ffmpeg-audio
   PRIVATE
@@ -53,13 +55,19 @@ if(WIN32)
     OBS::libobs
     FFmpeg::avcodec
     FFmpeg::avutil
+    Qt6::Widgets
+    Qt6::Core
   )
   target_link_libraries(obs-custom-ffmpeg-audio PRIVATE
     "${_ffmpeg_avcodec_lib}"
     "${_ffmpeg_avutil_lib}"
   )
 else()
-  target_link_libraries(obs-custom-ffmpeg-audio PRIVATE OBS::libobs FFmpeg::avcodec FFmpeg::avutil)
+  target_link_libraries(obs-custom-ffmpeg-audio PRIVATE OBS::libobs FFmpeg::avcodec FFmpeg::avutil Qt6::Widgets Qt6::Core)
+endif()
+
+if(TARGET obs-frontend-api)
+  target_link_libraries(obs-custom-ffmpeg-audio PRIVATE obs-frontend-api)
 endif()
 
 set_target_properties(obs-custom-ffmpeg-audio PROPERTIES
