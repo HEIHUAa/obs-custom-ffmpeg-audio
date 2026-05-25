@@ -80,9 +80,9 @@ const encoder_family families[] = {
 
 static const encoder_family *find_family_by_id(const char *id)
 {
-	for (const auto &f : families) {
-		if (strcmp(f.id, id) == 0)
-			return &f;
+	for (const encoder_family *f = families; f->id; f++) {
+		if (strcmp(f->id, id) == 0)
+			return f;
 	}
 	return &families[0];
 }
@@ -91,13 +91,30 @@ static bool is_lossless_codec(const char *codec_id)
 {
 	if (!codec_id)
 		return false;
-	for (const auto &f : families) {
-		for (const codec_entry *e = f.entries; e->name; e++) {
+	for (const encoder_family *f = families; f->id; f++) {
+		for (const codec_entry *e = f->entries; e->name; e++) {
 			if (strcmp(e->codec_id, codec_id) == 0)
 				return e->lossless;
 		}
 	}
 	return false;
+}
+
+const encoder_family *get_selected_encoder_family(void)
+{
+	config_t *config = open_encoder_config();
+	if (!config)
+		return &families[0];
+
+	const char *selected = config_get_string(config, "General", "selected");
+	config_close(config);
+
+	if (selected && *selected) {
+		const encoder_family *f = find_family_by_id(selected);
+		if (f && f->id)
+			return f;
+	}
+	return &families[0];
 }
 
 /* ── OBS音频格式与FFmpeg采样格式转换 ───────────────────── */
@@ -137,8 +154,8 @@ static inline std::string ffmpeg_error_str(int errnum)
 
 static const char *enc_get_name(void *type_data)
 {
-	const encoder_family *family = static_cast<const encoder_family *>(type_data);
-	return family->display_name;
+	UNUSED_PARAMETER(type_data);
+	return "Custom FFmpeg Audio";
 }
 
 static void enc_defaults(obs_data_t *settings)
@@ -252,11 +269,10 @@ static void *enc_create(obs_data_t *settings, obs_encoder_t *encoder)
 {
 	auto *enc = new custom_ffmpeg_audio_encoder;
 	enc->encoder = encoder;
-	enc->family = find_family_by_id(obs_encoder_get_id(encoder));
+	enc->family = get_selected_encoder_family();
 
-	blog(LOG_INFO, "[Custom FFmpeg Audio] enc_create for family: %s, codec_id default: %s",
-	     enc->family ? enc->family->id : "NULL",
-	     enc->family ? enc->family->default_codec_id : "NULL");
+	blog(LOG_INFO, "[Custom FFmpeg Audio] enc_create, selected family: %s, default codec: %s",
+	     enc->family->id, enc->family->default_codec_id);
 
 	{
 		std::string cfg_codec, cfg_sample_rate, cfg_custom_options;
@@ -557,14 +573,10 @@ static bool quality_mode_modified(obs_properties_t *props, obs_property_t *prop,
 
 static obs_properties_t *enc_properties2(void *data, void *type_data)
 {
-	blog(LOG_INFO, "[Custom FFmpeg Audio] enc_properties2 called, data=%p, type_data=%p", data, type_data);
+	UNUSED_PARAMETER(data);
+	UNUSED_PARAMETER(type_data);
 
-	if (!type_data) {
-		blog(LOG_WARNING, "[Custom FFmpeg Audio] enc_properties2: type_data is NULL!");
-		return obs_properties_create();
-	}
-
-	const encoder_family *family = static_cast<const encoder_family *>(type_data);
+	const encoder_family *family = get_selected_encoder_family();
 	blog(LOG_INFO, "[Custom FFmpeg Audio] enc_properties2 using family: %s", family->id);
 
 	obs_properties_t *props = obs_properties_create();
@@ -643,25 +655,21 @@ static bool enc_update(void *data, obs_data_t *settings)
 
 void register_custom_ffmpeg_audio_encoders(void)
 {
-	for (const auto &family : families) {
-		if (!family.id)
-			break;
-		struct obs_encoder_info info = {};
-		info.id = family.id;
-		info.type = OBS_ENCODER_AUDIO;
-		info.codec = family.codec;
-		info.get_name = enc_get_name;
-		info.create = enc_create;
-		info.destroy = enc_destroy;
-		info.encode = enc_encode;
-		info.get_frame_size = enc_frame_size;
-		info.get_defaults = enc_defaults;
-		info.get_properties2 = enc_properties2;
-		info.update = enc_update;
-		info.get_extra_data = enc_extra_data;
-		info.get_audio_info = enc_audio_info;
-		info.get_priming_samples = enc_initial_padding;
-		info.type_data = const_cast<encoder_family *>(&family);
-		obs_register_encoder_s(&info, sizeof(info));
-	}
+	struct obs_encoder_info info = {};
+	info.id = "custom_ffmpeg_audio";
+	info.type = OBS_ENCODER_AUDIO;
+	info.codec = "custom_ffmpeg_audio";
+	info.get_name = enc_get_name;
+	info.create = enc_create;
+	info.destroy = enc_destroy;
+	info.encode = enc_encode;
+	info.get_frame_size = enc_frame_size;
+	info.get_defaults = enc_defaults;
+	info.get_properties2 = enc_properties2;
+	info.update = enc_update;
+	info.get_extra_data = enc_extra_data;
+	info.get_audio_info = enc_audio_info;
+	info.get_priming_samples = enc_initial_padding;
+	info.type_data = nullptr;
+	obs_register_encoder_s(&info, sizeof(info));
 }

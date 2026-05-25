@@ -10,7 +10,7 @@
 
 /* ── 配置读写 ──────────────────────────────────────────────── */
 
-static config_t *open_config()
+config_t *open_encoder_config()
 {
 	char *path = obs_module_get_config_path(obs_current_module(), "config.ini");
 	config_t *config = nullptr;
@@ -29,7 +29,7 @@ void load_encoder_config(const char *family_id,
 			 std::string &out_custom_options,
 			 int &out_strict_compliance)
 {
-	config_t *config = open_config();
+	config_t *config = open_encoder_config();
 	if (!config)
 		return;
 
@@ -65,7 +65,7 @@ void save_encoder_config(const char *family_id,
 			 const char *custom_options,
 			 int strict_compliance)
 {
-	config_t *config = open_config();
+	config_t *config = open_encoder_config();
 	if (!config)
 		return;
 
@@ -250,9 +250,15 @@ void CustomFFmpegAudioConfigDialog::save_config(const char *family_id)
 
 void CustomFFmpegAudioConfigDialog::on_save()
 {
-	for (int i = 0; i < m_family_combo->count(); i++) {
-		QByteArray fid = m_family_combo->itemData(i).toByteArray();
-		save_config(fid.constData());
+	QByteArray fid = m_family_combo->currentData().toByteArray();
+	save_config(fid.constData());
+
+	config_t *config = open_encoder_config();
+	if (config) {
+		config_set_string(config, "General", "selected", fid.constData());
+		config_save(config);
+		config_close(config);
 	}
+
 	accept();
 }

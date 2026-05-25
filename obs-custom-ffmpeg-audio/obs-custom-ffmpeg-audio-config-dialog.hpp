@@ -9,6 +9,9 @@
 #include <QLabel>
 
 struct encoder_family;
+struct config_t;
+
+config_t *open_encoder_config(void);
 
 class CustomFFmpegAudioConfigDialog : public QDialog {
 	Q_OBJECT

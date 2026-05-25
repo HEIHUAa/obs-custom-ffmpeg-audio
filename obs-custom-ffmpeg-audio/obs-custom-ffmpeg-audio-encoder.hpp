@@ -58,3 +58,4 @@ struct custom_ffmpeg_audio_encoder {
 };
 
 void register_custom_ffmpeg_audio_encoders(void);
+const encoder_family *get_selected_encoder_family(void);
