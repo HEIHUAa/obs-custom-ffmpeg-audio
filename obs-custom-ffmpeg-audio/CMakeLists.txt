@@ -1,3 +1,5 @@
+set(CMAKE_AUTOMOC ON)
+
 add_library(obs-custom-ffmpeg-audio MODULE)
 
 find_package(libobs CONFIG)
