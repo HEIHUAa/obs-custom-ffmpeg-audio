@@ -517,8 +517,11 @@ static bool enc_encode(void *data, struct encoder_frame *frame,
 {
 	auto *enc = static_cast<custom_ffmpeg_audio_encoder *>(data);
 
+	int channels = enc->context->ch_layout.nb_channels;
+	size_t plane_size = (size_t)enc->frame_size_bytes * channels / enc->audio_planes;
+
 	for (size_t i = 0; i < enc->audio_planes; i++)
-		memcpy(enc->sample_buffer[i], frame->data[i], (size_t)enc->frame_size_bytes);
+		memcpy(enc->sample_buffer[i], frame->data[i], plane_size);
 
 	return do_encode(enc, packet, received_packet);
 }
