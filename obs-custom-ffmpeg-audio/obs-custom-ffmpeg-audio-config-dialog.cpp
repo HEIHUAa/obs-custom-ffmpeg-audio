@@ -8,6 +8,8 @@
 #include <QLabel>
 #include <QGroupBox>
 #include <QPushButton>
+#include <QComboBox>
+#include <QTextEdit>
 
 CustomFFmpegAudioConfigDialog::CustomFFmpegAudioConfigDialog(QWidget *parent)
 	: QDialog(parent)
