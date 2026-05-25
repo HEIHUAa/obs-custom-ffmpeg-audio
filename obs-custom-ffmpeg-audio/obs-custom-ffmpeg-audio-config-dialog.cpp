@@ -13,8 +13,11 @@
 static config_t *open_config()
 {
 	char *path = obs_module_get_config_path(obs_current_module(), "config.ini");
-	config_t *config = config_open(path, CONFIG_OPEN_ALWAYS);
+	config_t *config = nullptr;
+	int ret = config_open(&config, path, CONFIG_OPEN_ALWAYS);
 	bfree(path);
+	if (ret != CONFIG_SUCCESS)
+		return nullptr;
 	return config;
 }
 
@@ -83,9 +86,17 @@ void save_encoder_config(const char *family_id,
 
 /* ── 族定义 ───────────────────────────────────────────────── */
 
+static int count_families()
+{
+	int n = 0;
+	while (families[n].id)
+		n++;
+	return n;
+}
+
 static const encoder_family *find_family_by_index(int index)
 {
-	if (index >= 0 && index < (int)(sizeof(families) / sizeof(families[0])))
+	if (index >= 0 && index < count_families())
 		return &families[index];
 	return &families[0];
 }
@@ -103,8 +114,8 @@ CustomFFmpegAudioConfigDialog::CustomFFmpegAudioConfigDialog(QWidget *parent)
 
 	m_family_combo = new QComboBox(this);
 
-	for (const auto &f : families)
-		m_family_combo->addItem(f.display_name, f.id);
+	for (const encoder_family *f = families; f->id; f++)
+		m_family_combo->addItem(f->display_name, f->id);
 
 	connect(m_family_combo, QOverload<int>::of(&QComboBox::currentIndexChanged),
 		this, &CustomFFmpegAudioConfigDialog::on_family_changed);

@@ -75,6 +75,7 @@ const encoder_family families[] = {
 	{"custom_ffmpeg_audio_ac3",    "ac3",       "Custom FFmpeg Audio (AC3)",    ac3_codecs,   "ac3"},
 	{"custom_ffmpeg_audio_vorbis", "vorbis",    "Custom FFmpeg Audio (Vorbis)", vorbis_codecs,"libvorbis"},
 	{"custom_ffmpeg_audio_pcm",    "pcm_s16le", "Custom FFmpeg Audio (PCM)",    pcm_codecs,   "pcm_s16le"},
+	{nullptr, nullptr, nullptr, nullptr, nullptr},
 };
 
 static const encoder_family *find_family_by_id(const char *id)

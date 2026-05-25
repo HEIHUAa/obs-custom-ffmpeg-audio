@@ -1,5 +1,5 @@
 #include <obs-module.h>
-#include <obs-frontend-api/obs-frontend-api.h>
+#include <obs-frontend-api.h>
 #include <QAction>
 #include <QWidget>
 
