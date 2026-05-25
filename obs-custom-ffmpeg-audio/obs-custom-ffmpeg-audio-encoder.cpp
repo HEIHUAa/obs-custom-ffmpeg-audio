@@ -658,7 +658,7 @@ void register_custom_ffmpeg_audio_encoders(void)
 	struct obs_encoder_info info = {};
 	info.id = "custom_ffmpeg_audio";
 	info.type = OBS_ENCODER_AUDIO;
-	info.codec = "custom_ffmpeg_audio";
+	info.codec = "aac";
 	info.get_name = enc_get_name;
 	info.create = enc_create;
 	info.destroy = enc_destroy;
