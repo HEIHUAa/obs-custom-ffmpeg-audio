@@ -197,7 +197,7 @@ static bool initialize_codec(custom_ffmpeg_audio_encoder *enc)
 	if (!enc->custom_options.empty()) {
 		blog(LOG_INFO, "[Custom FFmpeg Audio] applying custom options: '%s'",
 		     enc->custom_options.c_str());
-		int ret = av_dict_parse_string(&opts, enc->custom_options.c_str(), "=", " ", 0);
+		int ret = av_dict_parse_string(&opts, enc->custom_options.c_str(), "=", " \n\r\t", 0);
 		if (ret < 0) {
 			warn("Failed to parse custom options: %s", ffmpeg_error_str(ret).c_str());
 		}
@@ -642,7 +642,6 @@ static bool enc_update(void *data, obs_data_t *settings)
 
 	enc->use_quality = use_quality;
 	enc->quality = (int)obs_data_get_int(settings, "quality");
-	enc->custom_options = obs_data_get_string(settings, "custom_options");
 
 	return true;
 }
