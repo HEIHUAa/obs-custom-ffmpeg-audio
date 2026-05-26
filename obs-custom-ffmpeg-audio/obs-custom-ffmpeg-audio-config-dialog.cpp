@@ -48,8 +48,9 @@ CustomFFmpegAudioConfigDialog::CustomFFmpegAudioConfigDialog(QWidget *parent)
 	sr_layout->addWidget(sample_rate_combo, 1);
 	main_layout->addLayout(sr_layout);
 
-	auto *quality_group = new QGroupBox(obs_module_text("Quality"));
-	auto *quality_layout = new QVBoxLayout(quality_group);
+	auto *quality_group_widget = new QGroupBox(obs_module_text("Quality"));
+	auto *quality_layout = new QVBoxLayout(quality_group_widget);
+	quality_group = quality_group_widget;
 
 	use_quality_check = new QCheckBox(obs_module_text("UseQuality"));
 	use_quality_check->setToolTip(obs_module_text("UseQuality.Tooltip"));
@@ -138,6 +139,8 @@ void CustomFFmpegAudioConfigDialog::load_family(int index)
 		}
 	}
 	codec_combo->blockSignals(false);
+
+	quality_group->setVisible(family ? family->supports_quality : false);
 
 	config_t *config = open_encoder_config();
 	if (config) {

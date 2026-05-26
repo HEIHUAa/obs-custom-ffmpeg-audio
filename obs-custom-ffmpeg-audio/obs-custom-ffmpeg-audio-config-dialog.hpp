@@ -7,6 +7,7 @@ class QTextEdit;
 class QCheckBox;
 class QSlider;
 class QLabel;
+class QGroupBox;
 
 class CustomFFmpegAudioConfigDialog : public QDialog {
 	Q_OBJECT
@@ -22,6 +23,7 @@ private:
 	QComboBox *family_combo;
 	QComboBox *codec_combo;
 	QComboBox *sample_rate_combo;
+	QGroupBox *quality_group;
 	QCheckBox *use_quality_check;
 	QSlider *quality_slider;
 	QLabel *quality_label;

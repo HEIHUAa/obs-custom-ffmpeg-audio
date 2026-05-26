@@ -38,6 +38,11 @@ static const codec_entry alac_codecs[] = {
 	{nullptr, nullptr, false, -1}
 };
 
+static const codec_entry wavpack_codecs[] = {
+	{"WavPack",                     "wavpack",       true,  -1},
+	{nullptr, nullptr, false, -1}
+};
+
 static const codec_entry mp3_codecs[] = {
 	{"MP3 (libmp3lame)",            "libmp3lame",    false, -1},
 	{nullptr, nullptr, false, -1}
@@ -97,22 +102,23 @@ static const codec_entry g722_codecs[] = {
 /* ── 编码器家族定义 ──────────────────────────────────────── */
 
 const encoder_family families[] = {
-	{"custom_ffmpeg_audio_aac",    "aac",       "Custom FFmpeg Audio (AAC)",    aac_codecs,   "aac"},
-	{"custom_ffmpeg_audio_opus",   "opus",      "Custom FFmpeg Audio (Opus)",   opus_codecs,  "libopus"},
-	{"custom_ffmpeg_audio_flac",   "flac",      "Custom FFmpeg Audio (FLAC)",   flac_codecs,  "flac"},
-	{"custom_ffmpeg_audio_alac",   "alac",      "Custom FFmpeg Audio (ALAC)",   alac_codecs,  "alac"},
-	{"custom_ffmpeg_audio_mp3",    "mp3",       "Custom FFmpeg Audio (MP3)",    mp3_codecs,   "libmp3lame"},
-	{"custom_ffmpeg_audio_ac3",    "ac3",       "Custom FFmpeg Audio (AC3)",    ac3_codecs,   "ac3"},
-	{"custom_ffmpeg_audio_vorbis", "vorbis",    "Custom FFmpeg Audio (Vorbis)", vorbis_codecs,"libvorbis"},
-	{"custom_ffmpeg_audio_pcm_s16le", "pcm_s16le", "Custom FFmpeg Audio (PCM 16-bit)",         pcm_codecs,        "pcm_s16le"},
-	{"custom_ffmpeg_audio_pcm_s24le", "pcm_s24le", "Custom FFmpeg Audio (PCM 24-bit)",         pcm_24bit_codecs,  "pcm_s24le"},
-	{"custom_ffmpeg_audio_pcm_f32le", "pcm_f32le", "Custom FFmpeg Audio (PCM 32-bit float)",   pcm_float_codecs,  "pcm_f32le"},
-	{"custom_ffmpeg_audio_pcm_u8",    "pcm_u8",    "Custom FFmpeg Audio (PCM 8-bit)",          pcm_u8_codecs,     "pcm_u8"},
-	{"custom_ffmpeg_audio_pcm_alaw",  "pcm_alaw",  "Custom FFmpeg Audio (PCM A-law)",          pcm_alaw_codecs,   "pcm_alaw"},
-	{"custom_ffmpeg_audio_pcm_mulaw", "pcm_mulaw", "Custom FFmpeg Audio (PCM mu-law)",         pcm_mulaw_codecs,  "pcm_mulaw"},
-	{"custom_ffmpeg_audio_adpcm_ms",  "adpcm_ms",  "Custom FFmpeg Audio (ADPCM MS)",           adpcm_ms_codecs,   "adpcm_ms"},
-	{"custom_ffmpeg_audio_g722",      "g722",      "Custom FFmpeg Audio (G.722)",              g722_codecs,       "g722"},
-	{nullptr, nullptr, nullptr, nullptr, nullptr},
+	{"custom_ffmpeg_audio_aac",    "aac",       "Custom FFmpeg Audio (AAC)",    aac_codecs,   "aac",       true},
+	{"custom_ffmpeg_audio_opus",   "opus",      "Custom FFmpeg Audio (Opus)",   opus_codecs,  "libopus",   true},
+	{"custom_ffmpeg_audio_flac",   "flac",      "Custom FFmpeg Audio (FLAC)",   flac_codecs,  "flac",      false},
+	{"custom_ffmpeg_audio_alac",   "alac",      "Custom FFmpeg Audio (ALAC)",   alac_codecs,  "alac",      false},
+	{"custom_ffmpeg_audio_wavpack","wavpack",   "Custom FFmpeg Audio (WavPack)",wavpack_codecs,"wavpack",   false},
+	{"custom_ffmpeg_audio_mp3",    "mp3",       "Custom FFmpeg Audio (MP3)",    mp3_codecs,   "libmp3lame",true},
+	{"custom_ffmpeg_audio_ac3",    "ac3",       "Custom FFmpeg Audio (AC3)",    ac3_codecs,   "ac3",       false},
+	{"custom_ffmpeg_audio_vorbis", "vorbis",    "Custom FFmpeg Audio (Vorbis)", vorbis_codecs,"libvorbis", true},
+	{"custom_ffmpeg_audio_pcm_s16le", "pcm_s16le", "Custom FFmpeg Audio (PCM 16-bit)",         pcm_codecs,        "pcm_s16le", false},
+	{"custom_ffmpeg_audio_pcm_s24le", "pcm_s24le", "Custom FFmpeg Audio (PCM 24-bit)",         pcm_24bit_codecs,  "pcm_s24le", false},
+	{"custom_ffmpeg_audio_pcm_f32le", "pcm_f32le", "Custom FFmpeg Audio (PCM 32-bit float)",   pcm_float_codecs,  "pcm_f32le", false},
+	{"custom_ffmpeg_audio_pcm_u8",    "pcm_u8",    "Custom FFmpeg Audio (PCM 8-bit)",          pcm_u8_codecs,     "pcm_u8",    false},
+	{"custom_ffmpeg_audio_pcm_alaw",  "pcm_alaw",  "Custom FFmpeg Audio (PCM A-law)",          pcm_alaw_codecs,   "pcm_alaw",  false},
+	{"custom_ffmpeg_audio_pcm_mulaw", "pcm_mulaw", "Custom FFmpeg Audio (PCM mu-law)",         pcm_mulaw_codecs,  "pcm_mulaw", false},
+	{"custom_ffmpeg_audio_adpcm_ms",  "adpcm_ms",  "Custom FFmpeg Audio (ADPCM MS)",           adpcm_ms_codecs,   "adpcm_ms",  false},
+	{"custom_ffmpeg_audio_g722",      "g722",      "Custom FFmpeg Audio (G.722)",              g722_codecs,       "g722",      false},
+	{nullptr, nullptr, nullptr, nullptr, nullptr, false},
 };
 
 static bool is_lossless_codec(const char *codec_id)
@@ -369,7 +375,24 @@ static void *enc_create(obs_data_t *settings, obs_encoder_t *encoder)
 	enc->codec = avcodec_find_encoder_by_name(codec_id);
 	if (!enc->codec) {
 		warn("Couldn't find encoder '%s'", codec_id);
-		goto fail;
+		codec_id = enc->family->default_codec_id;
+		enc->codec = avcodec_find_encoder_by_name(codec_id);
+		if (!enc->codec) {
+			for (const codec_entry *e = enc->family->entries; e->name; e++) {
+				enc->codec = avcodec_find_encoder_by_name(e->codec_id);
+				if (enc->codec) {
+					codec_id = e->codec_id;
+					warn("Falling back to encoder '%s'", codec_id);
+					break;
+				}
+			}
+		} else {
+			warn("Falling back to default encoder '%s'", codec_id);
+		}
+		if (!enc->codec) {
+			warn("No usable encoder found in family '%s'", enc->family->id);
+			goto fail;
+		}
 	}
 
 	enc->context = avcodec_alloc_context3(enc->codec);
@@ -456,14 +479,14 @@ static void *enc_create(obs_data_t *settings, obs_encoder_t *encoder)
 	if (lossless || enc->use_quality) {
 		enc->context->bit_rate = 0;
 		if (enc->use_quality) {
-			av_opt_set_double(enc->context->priv_data, "quality",
-					  (double)enc->quality / 10.0, 0);
+			enc->context->global_quality = enc->quality * FF_QP2LAMBDA;
+			enc->context->flags |= AV_CODEC_FLAG_QSCALE;
 		}
 	} else {
 		enc->context->bit_rate = enc->bitrate * 1000;
 	}
 
-	enc->context->flags = AV_CODEC_FLAG_GLOBAL_HEADER;
+	enc->context->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
 
 	char ch_layout_desc[256];
 	av_channel_layout_describe(&enc->context->ch_layout, ch_layout_desc, 256);

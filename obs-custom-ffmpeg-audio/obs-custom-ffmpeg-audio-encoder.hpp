@@ -25,6 +25,7 @@ struct encoder_family {
 	const char *display_name;
 	const codec_entry *entries;
 	const char *default_codec_id;
+	bool supports_quality;
 };
 
 extern const encoder_family families[];
