@@ -77,9 +77,12 @@ void CustomFFmpegAudioConfigDialog::load_family(int index)
 	if (config) {
 		const char *options = config_get_string(config,
 			family_id.toUtf8().constData(), "custom_options");
+		blog(LOG_INFO, "[Custom FFmpeg Audio] load_family [%s] = '%s'",
+		     family_id.toUtf8().constData(), options ? options : "(null)");
 		custom_options_edit->setPlainText(options ? options : "");
 		config_close(config);
 	} else {
+		blog(LOG_WARNING, "[Custom FFmpeg Audio] load_family: open_encoder_config returned NULL");
 		custom_options_edit->clear();
 	}
 }
@@ -90,11 +93,16 @@ void CustomFFmpegAudioConfigDialog::save_family(int index)
 	QString family_id = family_combo->itemData(index).toString();
 	QString options = custom_options_edit->toPlainText();
 
+	blog(LOG_INFO, "[Custom FFmpeg Audio] save_family [%s] = '%s'",
+	     family_id.toUtf8().constData(), options.toUtf8().constData());
+
 	config_t *config = open_encoder_config();
 	if (config) {
 		config_set_string(config, family_id.toUtf8().constData(),
 			"custom_options", options.toUtf8().constData());
 		config_save(config);
 		config_close(config);
+	} else {
+		blog(LOG_WARNING, "[Custom FFmpeg Audio] save_family: open_encoder_config returned NULL");
 	}
 }

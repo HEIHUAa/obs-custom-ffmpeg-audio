@@ -194,10 +194,14 @@ static bool initialize_codec(custom_ffmpeg_audio_encoder *enc)
 	AVDictionary *opts = nullptr;
 
 	if (!enc->custom_options.empty()) {
+		blog(LOG_INFO, "[Custom FFmpeg Audio] applying custom options: '%s'",
+		     enc->custom_options.c_str());
 		int ret = av_dict_parse_string(&opts, enc->custom_options.c_str(), "=", " ", 0);
 		if (ret < 0) {
 			warn("Failed to parse custom options: %s", ffmpeg_error_str(ret).c_str());
 		}
+	} else {
+		blog(LOG_INFO, "[Custom FFmpeg Audio] no custom options set");
 	}
 
 	enc->context->strict_std_compliance =
@@ -282,11 +286,21 @@ static void *enc_create(obs_data_t *settings, obs_encoder_t *encoder)
 		config_t *cfg = open_encoder_config();
 		if (cfg) {
 			const char *saved = config_get_string(cfg, enc->family->id, "custom_options");
-			enc->custom_options = (saved && *saved) ? saved
-				: obs_data_get_string(settings, "custom_options");
+			const char *from_settings = obs_data_get_string(settings, "custom_options");
+			if (saved && *saved) {
+				enc->custom_options = saved;
+				blog(LOG_INFO, "[Custom FFmpeg Audio] enc_create [%s] loaded from config: '%s'",
+				     enc->family->id, saved);
+			} else {
+				enc->custom_options = from_settings;
+				blog(LOG_INFO, "[Custom FFmpeg Audio] enc_create [%s] using settings default: '%s'",
+				     enc->family->id, from_settings ? from_settings : "(null)");
+			}
 			config_close(cfg);
 		} else {
 			enc->custom_options = obs_data_get_string(settings, "custom_options");
+			blog(LOG_WARNING, "[Custom FFmpeg Audio] enc_create [%s] open_encoder_config failed",
+			     enc->family->id);
 		}
 	}
 	enc->codec_name = codec_id;
@@ -683,15 +697,31 @@ static obs_module_t *g_config_module = nullptr;
 void set_encoder_config_module(obs_module_t *mod)
 {
 	g_config_module = mod;
+	blog(LOG_INFO, "[Custom FFmpeg Audio] config module cached: %p", (void *)mod);
 }
 
 config_t *open_encoder_config(void)
 {
+	blog(LOG_INFO, "[Custom FFmpeg Audio] open_encoder_config called, g_config_module=%p",
+	     (void *)g_config_module);
+
 	char *path = obs_module_get_config_path(g_config_module, "config.ini");
-	if (!path) return nullptr;
+	if (!path) {
+		blog(LOG_WARNING, "[Custom FFmpeg Audio] obs_module_get_config_path returned NULL");
+		return nullptr;
+	}
+
+	blog(LOG_INFO, "[Custom FFmpeg Audio] config file: %s", path);
+
 	config_t *config = nullptr;
 	int ret = config_open(&config, path, CONFIG_OPEN_ALWAYS);
 	bfree(path);
-	if (ret != CONFIG_SUCCESS) return nullptr;
+
+	if (ret != CONFIG_SUCCESS) {
+		blog(LOG_WARNING, "[Custom FFmpeg Audio] config_open failed, ret=%d", ret);
+		return nullptr;
+	}
+
+	blog(LOG_INFO, "[Custom FFmpeg Audio] config opened successfully");
 	return config;
 }
