@@ -42,7 +42,6 @@ struct custom_ffmpeg_audio_encoder {
 	std::vector<uint8_t> packet_data;
 
 	size_t audio_planes;
-	size_t audio_size;
 	int frame_size;
 	int frame_size_bytes;
 

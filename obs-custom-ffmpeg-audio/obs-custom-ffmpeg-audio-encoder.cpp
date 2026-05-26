@@ -252,7 +252,7 @@ static void init_sizes(custom_ffmpeg_audio_encoder *enc, audio_t *audio)
 
 static void *enc_create(obs_data_t *settings, obs_encoder_t *encoder)
 {
-	auto *enc = new custom_ffmpeg_audio_encoder;
+	auto *enc = new custom_ffmpeg_audio_encoder{};
 	enc->encoder = encoder;
 
 	const encoder_family *family = (const encoder_family *)
