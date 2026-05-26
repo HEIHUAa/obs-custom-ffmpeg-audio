@@ -455,56 +455,34 @@ static bool do_encode(custom_ffmpeg_audio_encoder *enc,
 	enc->total_samples += enc->frame_size;
 
 	ret = avcodec_send_frame(enc->context, enc->aframe);
-	while (ret == AVERROR(EAGAIN)) {
-		AVPacket drain_pkt = {0};
-		ret = avcodec_receive_packet(enc->context, &drain_pkt);
-		if (ret == 0) {
-			av_packet_unref(&drain_pkt);
-			ret = avcodec_send_frame(enc->context, enc->aframe);
-		} else {
-			break;
-		}
-	}
-
-	if (ret < 0 && ret != AVERROR_EOF) {
+	if (ret < 0 && ret != AVERROR(EAGAIN) && ret != AVERROR_EOF) {
 		warn("avcodec_send_frame failed: %s", ffmpeg_error_str(ret).c_str());
 		return false;
 	}
 
 	*received_packet = false;
 
-	while (true) {
-		AVPacket avpacket = {0};
-		ret = avcodec_receive_packet(enc->context, &avpacket);
-		if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
-			av_packet_unref(&avpacket);
-			break;
-		}
-		if (ret < 0) {
-			warn("avcodec_receive_packet failed: %s", ffmpeg_error_str(ret).c_str());
-			av_packet_unref(&avpacket);
-			return false;
-		}
+	AVPacket avpacket = {0};
+	ret = avcodec_receive_packet(enc->context, &avpacket);
+	if (ret == 0) {
+		packet->pts = rescale_ts(avpacket.pts, enc->context, time_base);
+		packet->dts = rescale_ts(avpacket.dts, enc->context, time_base);
+		packet->duration = avpacket.duration;
+		packet->type = OBS_ENCODER_AUDIO;
+		packet->size = 0;
+		packet->data = nullptr;
+		packet->keyframe = true;
+		packet->timebase_num = 1;
+		packet->timebase_den = enc->context->sample_rate;
 
-		if (!*received_packet) {
-			enc->packet_data.resize(0);
-			enc->packet_data.insert(enc->packet_data.end(),
-						avpacket.data, avpacket.data + avpacket.size);
+		enc->packet_data.clear();
+		enc->packet_data.insert(enc->packet_data.end(), avpacket.data, avpacket.data + avpacket.size);
+		packet->data = enc->packet_data.data();
+		packet->size = (size_t)avpacket.size;
 
-			packet->pts = rescale_ts(avpacket.pts, enc->context, time_base);
-			packet->dts = rescale_ts(avpacket.dts, enc->context, time_base);
-			packet->data = enc->packet_data.data();
-			packet->size = avpacket.size;
-			packet->type = OBS_ENCODER_AUDIO;
-			packet->keyframe = true;
-			packet->timebase_num = 1;
-			packet->timebase_den = (int32_t)enc->context->sample_rate;
-
-			*received_packet = true;
-		}
-
-		av_packet_unref(&avpacket);
+		*received_packet = true;
 	}
+	av_packet_unref(&avpacket);
 
 	return true;
 }
