@@ -132,8 +132,10 @@ void CustomFFmpegAudioConfigDialog::load_family(int index)
 	codec_combo->blockSignals(true);
 	codec_combo->clear();
 	if (family) {
-		for (const codec_entry *e = family->entries; e->name; e++)
-			codec_combo->addItem(e->name, e->codec_id);
+		for (const codec_entry *e = family->entries; e->name; e++) {
+			QString data = QString("%1|%2").arg(e->codec_id).arg(e->sample_fmt);
+			codec_combo->addItem(e->name, data);
+		}
 	}
 	codec_combo->blockSignals(false);
 
@@ -141,7 +143,16 @@ void CustomFFmpegAudioConfigDialog::load_family(int index)
 	if (config) {
 		const char *codec_val = config_get_string(config,
 			family_id.toUtf8().constData(), "codec");
-		int codec_idx = codec_combo->findData(codec_val ? codec_val : "");
+		int forced_fmt = -1;
+		const char *fmt_str = config_get_string(config,
+			family_id.toUtf8().constData(), "forced_sample_fmt");
+		if (fmt_str)
+			forced_fmt = atoi(fmt_str);
+
+		QString search_key = QString("%1|%2")
+			.arg(codec_val ? codec_val : "")
+			.arg(forced_fmt);
+		int codec_idx = codec_combo->findData(search_key);
 		if (codec_idx >= 0)
 			codec_combo->setCurrentIndex(codec_idx);
 
@@ -178,25 +189,30 @@ void CustomFFmpegAudioConfigDialog::save_family(int index)
 	if (index < 0) return;
 	QString family_id = family_combo->itemData(index).toString();
 
-	QString codec = codec_combo->currentData().toString();
+	QString codec_data = codec_combo->currentData().toString();
+	QStringList parts = codec_data.split('|');
+	QString codec_id = parts.value(0);
+	int forced_fmt = parts.value(1).toInt();
 	QString sr = sample_rate_combo->currentData().toString();
 	bool uq = use_quality_check->isChecked();
 	int q = quality_slider->value();
 	QString options = custom_options_edit->toPlainText();
 
-	blog(LOG_INFO, "[Custom FFmpeg Audio] save_family [%s] codec=%s sr=%s uq=%d q=%d custom='%s'",
-	     family_id.toUtf8().constData(), codec.toUtf8().constData(),
+	blog(LOG_INFO, "[Custom FFmpeg Audio] save_family [%s] codec=%s forced_fmt=%d sr=%s uq=%d q=%d custom='%s'",
+	     family_id.toUtf8().constData(), codec_id.toUtf8().constData(), forced_fmt,
 	     sr.toUtf8().constData(), uq, q,
 	     options.toUtf8().constData());
 
 	config_t *config = open_encoder_config();
 	if (config) {
 		config_set_string(config, family_id.toUtf8().constData(),
-			"codec", codec.toUtf8().constData());
+			"codec", codec_id.toUtf8().constData());
+		config_set_int(config, family_id.toUtf8().constData(),
+			"forced_sample_fmt", forced_fmt);
 		config_set_string(config, family_id.toUtf8().constData(),
 			"sample_rate", sr.toUtf8().constData());
-		config_set_bool(config, family_id.toUtf8().constData(),
-			"use_quality", uq);
+		config_set_int(config, family_id.toUtf8().constData(),
+			"use_quality", uq ? 1 : 0);
 		config_set_int(config, family_id.toUtf8().constData(),
 			"quality", q);
 		config_set_string(config, family_id.toUtf8().constData(),

@@ -16,6 +16,7 @@ struct codec_entry {
 	const char *name;
 	const char *codec_id;
 	bool lossless;
+	int sample_fmt;
 };
 
 struct encoder_family {
@@ -55,6 +56,7 @@ struct custom_ffmpeg_audio_encoder {
 
 	bool use_quality;
 	int quality;
+	int forced_sample_fmt;
 };
 
 void register_custom_ffmpeg_audio_encoders(void);

@@ -16,52 +16,82 @@
 /* ── 预定义编码器列表 ──────────────────────────────────────── */
 
 static const codec_entry aac_codecs[] = {
-	{"AAC (FFmpeg)",                "aac",           false},
-	{"AAC (libfdk)",                "libfdk_aac",    false},
-	{nullptr, nullptr, false}
+	{"AAC (FFmpeg)",                "aac",           false, -1},
+	{"AAC (libfdk)",                "libfdk_aac",    false, -1},
+	{nullptr, nullptr, false, -1}
 };
 
 static const codec_entry opus_codecs[] = {
-	{"Opus (libopus)",              "libopus",       false},
-	{nullptr, nullptr, false}
+	{"Opus (libopus)",              "libopus",       false, -1},
+	{nullptr, nullptr, false, -1}
 };
 
 static const codec_entry flac_codecs[] = {
-	{"FLAC (lossless)",             "flac",          true},
-	{nullptr, nullptr, false}
+	{"FLAC 16-bit",                 "flac",          true,  AV_SAMPLE_FMT_S16},
+	{"FLAC 24-bit",                 "flac",          true,  AV_SAMPLE_FMT_S32},
+	{nullptr, nullptr, false, -1}
 };
 
 static const codec_entry alac_codecs[] = {
-	{"ALAC (lossless)",             "alac",          true},
-	{nullptr, nullptr, false}
+	{"ALAC 16-bit",                 "alac",          true,  AV_SAMPLE_FMT_S16P},
+	{"ALAC 24-bit",                 "alac",          true,  AV_SAMPLE_FMT_S32P},
+	{nullptr, nullptr, false, -1}
 };
 
 static const codec_entry mp3_codecs[] = {
-	{"MP3 (libmp3lame)",            "libmp3lame",    false},
-	{nullptr, nullptr, false}
+	{"MP3 (libmp3lame)",            "libmp3lame",    false, -1},
+	{nullptr, nullptr, false, -1}
 };
 
 static const codec_entry ac3_codecs[] = {
-	{"AC3",                         "ac3",           false},
-	{"E-AC3",                       "eac3",          false},
-	{nullptr, nullptr, false}
+	{"AC3",                         "ac3",           false, -1},
+	{"E-AC3",                       "eac3",          false, -1},
+	{nullptr, nullptr, false, -1}
 };
 
 static const codec_entry vorbis_codecs[] = {
-	{"Vorbis (libvorbis)",          "libvorbis",     false},
-	{nullptr, nullptr, false}
+	{"Vorbis (libvorbis)",          "libvorbis",     false, -1},
+	{nullptr, nullptr, false, -1}
 };
 
 static const codec_entry pcm_codecs[] = {
-	{"PCM 16-bit",                  "pcm_s16le",     true},
-	{"PCM 24-bit",                  "pcm_s24le",     true},
-	{"PCM 32-bit float",            "pcm_f32le",     true},
-	{"PCM unsigned 8-bit",          "pcm_u8",        true},
-	{"PCM A-law",                   "pcm_alaw",      true},
-	{"PCM mu-law",                  "pcm_mulaw",     true},
-	{"ADPCM MS",                    "adpcm_ms",      true},
-	{"G.722",                       "g722",          false},
-	{nullptr, nullptr, false}
+	{"PCM 16-bit",                  "pcm_s16le",     true,  -1},
+	{nullptr, nullptr, false, -1}
+};
+
+static const codec_entry pcm_24bit_codecs[] = {
+	{"PCM 24-bit",                  "pcm_s24le",     true,  -1},
+	{nullptr, nullptr, false, -1}
+};
+
+static const codec_entry pcm_float_codecs[] = {
+	{"PCM 32-bit float",            "pcm_f32le",     true,  -1},
+	{nullptr, nullptr, false, -1}
+};
+
+static const codec_entry pcm_u8_codecs[] = {
+	{"PCM unsigned 8-bit",          "pcm_u8",        true,  -1},
+	{nullptr, nullptr, false, -1}
+};
+
+static const codec_entry pcm_alaw_codecs[] = {
+	{"PCM A-law",                   "pcm_alaw",      true,  -1},
+	{nullptr, nullptr, false, -1}
+};
+
+static const codec_entry pcm_mulaw_codecs[] = {
+	{"PCM mu-law",                  "pcm_mulaw",     true,  -1},
+	{nullptr, nullptr, false, -1}
+};
+
+static const codec_entry adpcm_ms_codecs[] = {
+	{"ADPCM MS",                    "adpcm_ms",      true,  -1},
+	{nullptr, nullptr, false, -1}
+};
+
+static const codec_entry g722_codecs[] = {
+	{"G.722",                       "g722",          false, -1},
+	{nullptr, nullptr, false, -1}
 };
 
 /* ── 编码器家族定义 ──────────────────────────────────────── */
@@ -74,7 +104,14 @@ const encoder_family families[] = {
 	{"custom_ffmpeg_audio_mp3",    "mp3",       "Custom FFmpeg Audio (MP3)",    mp3_codecs,   "libmp3lame"},
 	{"custom_ffmpeg_audio_ac3",    "ac3",       "Custom FFmpeg Audio (AC3)",    ac3_codecs,   "ac3"},
 	{"custom_ffmpeg_audio_vorbis", "vorbis",    "Custom FFmpeg Audio (Vorbis)", vorbis_codecs,"libvorbis"},
-	{"custom_ffmpeg_audio_pcm",    "pcm_s16le", "Custom FFmpeg Audio (PCM)",    pcm_codecs,   "pcm_s16le"},
+	{"custom_ffmpeg_audio_pcm_s16le", "pcm_s16le", "Custom FFmpeg Audio (PCM 16-bit)",         pcm_codecs,        "pcm_s16le"},
+	{"custom_ffmpeg_audio_pcm_s24le", "pcm_s24le", "Custom FFmpeg Audio (PCM 24-bit)",         pcm_24bit_codecs,  "pcm_s24le"},
+	{"custom_ffmpeg_audio_pcm_f32le", "pcm_f32le", "Custom FFmpeg Audio (PCM 32-bit float)",   pcm_float_codecs,  "pcm_f32le"},
+	{"custom_ffmpeg_audio_pcm_u8",    "pcm_u8",    "Custom FFmpeg Audio (PCM 8-bit)",          pcm_u8_codecs,     "pcm_u8"},
+	{"custom_ffmpeg_audio_pcm_alaw",  "pcm_alaw",  "Custom FFmpeg Audio (PCM A-law)",          pcm_alaw_codecs,   "pcm_alaw"},
+	{"custom_ffmpeg_audio_pcm_mulaw", "pcm_mulaw", "Custom FFmpeg Audio (PCM mu-law)",         pcm_mulaw_codecs,  "pcm_mulaw"},
+	{"custom_ffmpeg_audio_adpcm_ms",  "adpcm_ms",  "Custom FFmpeg Audio (ADPCM MS)",           adpcm_ms_codecs,   "adpcm_ms"},
+	{"custom_ffmpeg_audio_g722",      "g722",      "Custom FFmpeg Audio (G.722)",              g722_codecs,       "g722"},
 	{nullptr, nullptr, nullptr, nullptr, nullptr},
 };
 
@@ -280,12 +317,17 @@ static void *enc_create(obs_data_t *settings, obs_encoder_t *encoder)
 			if (qs)
 				enc->quality = atoi(qs);
 
+			enc->forced_sample_fmt = -1;
+			const char *fmt_str = config_get_string(cfg, enc->family->id, "forced_sample_fmt");
+			if (fmt_str)
+				enc->forced_sample_fmt = atoi(fmt_str);
+
 			const char *co = config_get_string(cfg, enc->family->id, "custom_options");
 			enc->custom_options = co ? co : "";
 
-			blog(LOG_INFO, "[Custom FFmpeg Audio] enc_create [%s] codec=%s sample_rate=%s use_quality=%d quality=%d custom='%s'",
+			blog(LOG_INFO, "[Custom FFmpeg Audio] enc_create [%s] codec=%s sample_rate=%s use_quality=%d quality=%d forced_fmt=%d custom='%s'",
 			     enc->family->id, enc->codec_name.c_str(), enc->sample_rate_str.c_str(),
-			     enc->use_quality, enc->quality,
+			     enc->use_quality, enc->quality, enc->forced_sample_fmt,
 			     enc->custom_options.c_str());
 			config_close(cfg);
 		} else {
@@ -293,6 +335,7 @@ static void *enc_create(obs_data_t *settings, obs_encoder_t *encoder)
 			enc->sample_rate_str = "auto";
 			enc->use_quality = false;
 			enc->quality = 3;
+			enc->forced_sample_fmt = -1;
 			blog(LOG_WARNING, "[Custom FFmpeg Audio] enc_create [%s] open_encoder_config failed, using defaults",
 			     enc->family->id);
 		}
@@ -302,6 +345,15 @@ static void *enc_create(obs_data_t *settings, obs_encoder_t *encoder)
 
 	const char *codec_id = enc->codec_name.c_str();
 	const char *sample_rate_str = enc->sample_rate_str.c_str();
+
+	if (enc->forced_sample_fmt == -1) {
+		for (const codec_entry *e = enc->family->entries; e->name; e++) {
+			if (strcmp(e->codec_id, codec_id) == 0) {
+				enc->forced_sample_fmt = e->sample_fmt;
+				break;
+			}
+		}
+	}
 
 	audio_t *audio = nullptr;
 	const struct audio_output_info *aoi = nullptr;
@@ -379,6 +431,11 @@ static void *enc_create(obs_data_t *settings, obs_encoder_t *encoder)
 			enc->context->sample_fmt = sample_fmts[0];
 	} else {
 		enc->context->sample_fmt = AV_SAMPLE_FMT_FLTP;
+	}
+
+	if (enc->forced_sample_fmt != -1) {
+		enc->context->sample_fmt = (enum AVSampleFormat)enc->forced_sample_fmt;
+		blog(LOG_INFO, "[Custom FFmpeg Audio] forcing sample format: %d", enc->forced_sample_fmt);
 	}
 
 	if (supported_samplerates) {
