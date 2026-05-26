@@ -1,4 +1,5 @@
 #include "obs-custom-ffmpeg-audio-encoder.hpp"
+#include <obs-frontend-api.h>
 #include <util/dstr.h>
 #include <util/platform.h>
 #include <cstring>
@@ -195,7 +196,7 @@ static bool initialize_codec(custom_ffmpeg_audio_encoder *enc)
 		blog(LOG_INFO, "[Custom FFmpeg Audio] no custom options set");
 	}
 
-	enc->context->strict_std_compliance = enc->strict_compliance;
+	enc->context->strict_std_compliance = -2;
 
 	int ret = avcodec_open2(enc->context, enc->codec, &opts);
 
@@ -279,17 +280,12 @@ static void *enc_create(obs_data_t *settings, obs_encoder_t *encoder)
 			if (qs)
 				enc->quality = atoi(qs);
 
-			enc->strict_compliance = -2;
-			const char *scs = config_get_string(cfg, enc->family->id, "strict_compliance");
-			if (scs)
-				enc->strict_compliance = atoi(scs);
-
 			const char *co = config_get_string(cfg, enc->family->id, "custom_options");
 			enc->custom_options = co ? co : "";
 
-			blog(LOG_INFO, "[Custom FFmpeg Audio] enc_create [%s] codec=%s sample_rate=%s use_quality=%d quality=%d strict=%d custom='%s'",
+			blog(LOG_INFO, "[Custom FFmpeg Audio] enc_create [%s] codec=%s sample_rate=%s use_quality=%d quality=%d custom='%s'",
 			     enc->family->id, enc->codec_name.c_str(), enc->sample_rate_str.c_str(),
-			     enc->use_quality, enc->quality, enc->strict_compliance,
+			     enc->use_quality, enc->quality,
 			     enc->custom_options.c_str());
 			config_close(cfg);
 		} else {
@@ -297,7 +293,6 @@ static void *enc_create(obs_data_t *settings, obs_encoder_t *encoder)
 			enc->sample_rate_str = "auto";
 			enc->use_quality = false;
 			enc->quality = 3;
-			enc->strict_compliance = -2;
 			blog(LOG_WARNING, "[Custom FFmpeg Audio] enc_create [%s] open_encoder_config failed, using defaults",
 			     enc->family->id);
 		}
@@ -607,28 +602,32 @@ void set_encoder_config_module(obs_module_t *mod)
 
 config_t *open_encoder_config(void)
 {
-	blog(LOG_INFO, "[Custom FFmpeg Audio] open_encoder_config called, g_config_module=%p",
-	     (void *)g_config_module);
+	char *profile_path = obs_frontend_get_current_profile_path();
+	bool is_profile_dir = (profile_path != nullptr);
 
-	char *path = obs_module_get_config_path(g_config_module, "config.ini");
-	if (!path) {
-		blog(LOG_WARNING, "[Custom FFmpeg Audio] obs_module_get_config_path returned NULL");
+	if (!profile_path) {
+		blog(LOG_WARNING, "[Custom FFmpeg Audio] obs_frontend_get_current_profile_path returned NULL, falling back to module path");
+		profile_path = obs_module_get_config_path(g_config_module, "config.ini");
+	}
+	if (!profile_path) {
+		blog(LOG_WARNING, "[Custom FFmpeg Audio] both profile and module paths failed");
 		return nullptr;
 	}
 
-	blog(LOG_INFO, "[Custom FFmpeg Audio] config file: %s", path);
-
-	char *last_sep = strrchr(path, '/');
-	if (!last_sep) last_sep = strrchr(path, '\\');
-	if (last_sep) {
-		*last_sep = '\0';
-		os_mkdirs(path);
-		*last_sep = '/';
+	struct dstr config_path = {0};
+	if (is_profile_dir) {
+		dstr_copy(&config_path, profile_path);
+		dstr_cat(&config_path, "/obs-custom-ffmpeg-audio.ini");
+	} else {
+		dstr_copy(&config_path, profile_path);
 	}
 
+	blog(LOG_INFO, "[Custom FFmpeg Audio] config file: %s", config_path.array);
+
 	config_t *config = nullptr;
-	int ret = config_open(&config, path, CONFIG_OPEN_ALWAYS);
-	bfree(path);
+	int ret = config_open(&config, config_path.array, CONFIG_OPEN_ALWAYS);
+	bfree(profile_path);
+	dstr_free(&config_path);
 
 	if (ret != CONFIG_SUCCESS) {
 		blog(LOG_WARNING, "[Custom FFmpeg Audio] config_open failed, ret=%d", ret);

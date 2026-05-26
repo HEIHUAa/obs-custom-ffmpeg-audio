@@ -67,16 +67,6 @@ CustomFFmpegAudioConfigDialog::CustomFFmpegAudioConfigDialog(QWidget *parent)
 
 	main_layout->addWidget(quality_group);
 
-	auto *strict_layout = new QHBoxLayout();
-	strict_layout->addWidget(new QLabel(obs_module_text("StrictCompliance")));
-	strict_compliance_slider = new QSlider(Qt::Horizontal);
-	strict_compliance_slider->setRange(-2, 2);
-	strict_compliance_slider->setTickPosition(QSlider::TicksBelow);
-	strict_compliance_slider->setTickInterval(1);
-	strict_compliance_slider->setToolTip(obs_module_text("StrictCompliance.Tooltip"));
-	strict_layout->addWidget(strict_compliance_slider, 1);
-	main_layout->addLayout(strict_layout);
-
 	auto *options_group = new QGroupBox(obs_module_text("CustomOptions"));
 	auto *options_layout = new QVBoxLayout(options_group);
 	custom_options_edit = new QTextEdit();
@@ -171,13 +161,6 @@ void CustomFFmpegAudioConfigDialog::load_family(int index)
 			q = atoi(q_str);
 		quality_slider->setValue(q);
 
-		int sc = -2;
-		const char *sc_str = config_get_string(config,
-			family_id.toUtf8().constData(), "strict_compliance");
-		if (sc_str)
-			sc = atoi(sc_str);
-		strict_compliance_slider->setValue(sc);
-
 		const char *options = config_get_string(config,
 			family_id.toUtf8().constData(), "custom_options");
 		custom_options_edit->setPlainText(options ? options : "");
@@ -199,12 +182,11 @@ void CustomFFmpegAudioConfigDialog::save_family(int index)
 	QString sr = sample_rate_combo->currentData().toString();
 	bool uq = use_quality_check->isChecked();
 	int q = quality_slider->value();
-	int sc = strict_compliance_slider->value();
 	QString options = custom_options_edit->toPlainText();
 
-	blog(LOG_INFO, "[Custom FFmpeg Audio] save_family [%s] codec=%s sr=%s uq=%d q=%d sc=%d custom='%s'",
+	blog(LOG_INFO, "[Custom FFmpeg Audio] save_family [%s] codec=%s sr=%s uq=%d q=%d custom='%s'",
 	     family_id.toUtf8().constData(), codec.toUtf8().constData(),
-	     sr.toUtf8().constData(), uq, q, sc,
+	     sr.toUtf8().constData(), uq, q,
 	     options.toUtf8().constData());
 
 	config_t *config = open_encoder_config();
@@ -217,8 +199,6 @@ void CustomFFmpegAudioConfigDialog::save_family(int index)
 			"use_quality", uq);
 		config_set_int(config, family_id.toUtf8().constData(),
 			"quality", q);
-		config_set_int(config, family_id.toUtf8().constData(),
-			"strict_compliance", sc);
 		config_set_string(config, family_id.toUtf8().constData(),
 			"custom_options", options.toUtf8().constData());
 		config_save(config);

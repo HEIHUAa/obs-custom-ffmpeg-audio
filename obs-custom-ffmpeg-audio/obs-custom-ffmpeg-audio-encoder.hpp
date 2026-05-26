@@ -53,7 +53,6 @@ struct custom_ffmpeg_audio_encoder {
 	std::string sample_rate_str;
 
 	int bitrate;
-	int strict_compliance;
 
 	bool use_quality;
 	int quality;

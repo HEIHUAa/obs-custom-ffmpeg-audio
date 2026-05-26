@@ -25,7 +25,6 @@ private:
 	QCheckBox *use_quality_check;
 	QSlider *quality_slider;
 	QLabel *quality_label;
-	QSlider *strict_compliance_slider;
 	QTextEdit *custom_options_edit;
 	int previous_index_ = -1;
 
