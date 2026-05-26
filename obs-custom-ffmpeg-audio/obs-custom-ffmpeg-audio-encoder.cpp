@@ -588,7 +588,7 @@ static obs_properties_t *enc_properties2(void *data, void *type_data)
 	obs_property_set_modified_callback(prop, codec_modified);
 
 	prop = obs_properties_add_int(props, "bitrate",
-		obs_module_text("Bitrate"), 16, 1024, 16);
+		obs_module_text("Bitrate"), 16, 1024, 8);
 	obs_property_int_set_suffix(prop, " kbps");
 
 	prop = obs_properties_add_bool(props, "use_quality",
