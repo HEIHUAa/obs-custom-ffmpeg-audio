@@ -4,6 +4,9 @@
 
 class QComboBox;
 class QTextEdit;
+class QCheckBox;
+class QSlider;
+class QLabel;
 
 class CustomFFmpegAudioConfigDialog : public QDialog {
 	Q_OBJECT
@@ -13,9 +16,16 @@ public:
 private slots:
 	void family_changed(int index);
 	void save_current();
+	void use_quality_toggled(bool checked);
 
 private:
 	QComboBox *family_combo;
+	QComboBox *codec_combo;
+	QComboBox *sample_rate_combo;
+	QCheckBox *use_quality_check;
+	QSlider *quality_slider;
+	QLabel *quality_label;
+	QSlider *strict_compliance_slider;
 	QTextEdit *custom_options_edit;
 	int previous_index_ = -1;
 

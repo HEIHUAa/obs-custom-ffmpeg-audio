@@ -50,9 +50,10 @@ struct custom_ffmpeg_audio_encoder {
 
 	std::string codec_name;
 	std::string custom_options;
+	std::string sample_rate_str;
 
 	int bitrate;
-	int sample_rate;
+	int strict_compliance;
 
 	bool use_quality;
 	int quality;

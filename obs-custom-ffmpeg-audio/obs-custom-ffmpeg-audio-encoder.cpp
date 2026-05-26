@@ -135,18 +135,8 @@ static const char *enc_get_name(void *type_data)
 
 static void enc_defaults2(obs_data_t *settings, void *type_data)
 {
-	const encoder_family *family = (const encoder_family *)type_data;
-	blog(LOG_INFO, "[Custom FFmpeg Audio] enc_defaults called for %s",
-	     family ? family->id : "unknown");
-
-	obs_data_set_default_string(settings, "codec",
-		family ? family->default_codec_id : "aac");
+	UNUSED_PARAMETER(type_data);
 	obs_data_set_default_int(settings, "bitrate", 128);
-	obs_data_set_default_string(settings, "sample_rate", "auto");
-	obs_data_set_default_int(settings, "quality", 3);
-	obs_data_set_default_bool(settings, "use_quality", false);
-	obs_data_set_default_string(settings, "custom_options", "");
-	obs_data_set_default_int(settings, "strict_compliance", -2);
 }
 
 static inline int64_t rescale_ts(int64_t val, AVCodecContext *ctx, AVRational new_base)
@@ -205,8 +195,7 @@ static bool initialize_codec(custom_ffmpeg_audio_encoder *enc)
 		blog(LOG_INFO, "[Custom FFmpeg Audio] no custom options set");
 	}
 
-	enc->context->strict_std_compliance =
-		(int)obs_data_get_int(obs_encoder_get_settings(enc->encoder), "strict_compliance");
+	enc->context->strict_std_compliance = enc->strict_compliance;
 
 	int ret = avcodec_open2(enc->context, enc->codec, &opts);
 
@@ -274,42 +263,54 @@ static void *enc_create(obs_data_t *settings, obs_encoder_t *encoder)
 	blog(LOG_INFO, "[Custom FFmpeg Audio] enc_create, selected family: %s, default codec: %s",
 	     enc->family->id, enc->family->default_codec_id);
 
-	const char *codec_id = obs_data_get_string(settings, "codec");
-	if (!codec_id || !*codec_id) {
-		codec_id = enc->family->default_codec_id;
-		obs_data_set_string(settings, "codec", codec_id);
-		blog(LOG_INFO, "[Custom FFmpeg Audio] codec was empty, using default: %s", codec_id);
-	}
-	enc->bitrate = (int)obs_data_get_int(settings, "bitrate");
-	enc->use_quality = obs_data_get_bool(settings, "use_quality");
-	enc->quality = (int)obs_data_get_int(settings, "quality");
 	{
 		config_t *cfg = open_encoder_config();
 		if (cfg) {
-			const char *saved = config_get_string(cfg, enc->family->id, "custom_options");
-			const char *from_settings = obs_data_get_string(settings, "custom_options");
-			if (saved && *saved) {
-				enc->custom_options = saved;
-				blog(LOG_INFO, "[Custom FFmpeg Audio] enc_create [%s] loaded from config: '%s'",
-				     enc->family->id, saved);
-			} else {
-				enc->custom_options = from_settings;
-				blog(LOG_INFO, "[Custom FFmpeg Audio] enc_create [%s] using settings default: '%s'",
-				     enc->family->id, from_settings ? from_settings : "(null)");
-			}
+			const char *c = config_get_string(cfg, enc->family->id, "codec");
+			enc->codec_name = (c && *c) ? c : enc->family->default_codec_id;
+
+			const char *sr = config_get_string(cfg, enc->family->id, "sample_rate");
+			enc->sample_rate_str = (sr && *sr) ? sr : "auto";
+
+			enc->use_quality = config_get_bool(cfg, enc->family->id, "use_quality");
+
+			enc->quality = 3;
+			const char *qs = config_get_string(cfg, enc->family->id, "quality");
+			if (qs)
+				enc->quality = atoi(qs);
+
+			enc->strict_compliance = -2;
+			const char *scs = config_get_string(cfg, enc->family->id, "strict_compliance");
+			if (scs)
+				enc->strict_compliance = atoi(scs);
+
+			const char *co = config_get_string(cfg, enc->family->id, "custom_options");
+			enc->custom_options = co ? co : "";
+
+			blog(LOG_INFO, "[Custom FFmpeg Audio] enc_create [%s] codec=%s sample_rate=%s use_quality=%d quality=%d strict=%d custom='%s'",
+			     enc->family->id, enc->codec_name.c_str(), enc->sample_rate_str.c_str(),
+			     enc->use_quality, enc->quality, enc->strict_compliance,
+			     enc->custom_options.c_str());
 			config_close(cfg);
 		} else {
-			enc->custom_options = obs_data_get_string(settings, "custom_options");
-			blog(LOG_WARNING, "[Custom FFmpeg Audio] enc_create [%s] open_encoder_config failed",
+			enc->codec_name = enc->family->default_codec_id;
+			enc->sample_rate_str = "auto";
+			enc->use_quality = false;
+			enc->quality = 3;
+			enc->strict_compliance = -2;
+			blog(LOG_WARNING, "[Custom FFmpeg Audio] enc_create [%s] open_encoder_config failed, using defaults",
 			     enc->family->id);
 		}
 	}
-	enc->codec_name = codec_id;
+
+	enc->bitrate = (int)obs_data_get_int(settings, "bitrate");
+
+	const char *codec_id = enc->codec_name.c_str();
+	const char *sample_rate_str = enc->sample_rate_str.c_str();
 
 	audio_t *audio = nullptr;
 	const struct audio_output_info *aoi = nullptr;
 	int channels = 0;
-	const char *sample_rate_str = nullptr;
 	const enum AVSampleFormat *sample_fmts = nullptr;
 	const int *supported_samplerates = nullptr;
 
@@ -347,7 +348,7 @@ static void *enc_create(obs_data_t *settings, obs_encoder_t *encoder)
 		av_channel_layout_from_mask(&enc->context->ch_layout,
 					    AV_CH_LAYOUT_7POINT1_WIDE_BACK);
 
-	sample_rate_str = obs_data_get_string(settings, "sample_rate");
+	sample_rate_str = enc->sample_rate_str.c_str();
 	int sr;
 	if (strcmp(sample_rate_str, "auto") == 0)
 		sr = (int)audio_output_get_sample_rate(audio);
@@ -539,89 +540,17 @@ static uint32_t enc_initial_padding(void *data)
 
 /* ── 属性面板 ────────────────────────────────────────────── */
 
-static bool codec_modified(obs_properties_t *props, obs_property_t *prop,
-			   obs_data_t *settings)
-{
-	UNUSED_PARAMETER(prop);
-
-	const char *codec_id = obs_data_get_string(settings, "codec");
-	bool lossless = is_lossless_codec(codec_id);
-	bool use_quality = obs_data_get_bool(settings, "use_quality");
-
-	obs_property_t *p_bitrate = obs_properties_get(props, "bitrate");
-	obs_property_t *p_quality = obs_properties_get(props, "quality");
-	obs_property_t *p_use_quality = obs_properties_get(props, "use_quality");
-
-	obs_property_set_visible(p_bitrate, !lossless && !use_quality);
-	obs_property_set_visible(p_quality, use_quality);
-	obs_property_set_visible(p_use_quality, !lossless);
-
-	return true;
-}
-
-static bool quality_mode_modified(obs_properties_t *props, obs_property_t *prop,
-				  obs_data_t *settings)
-{
-	UNUSED_PARAMETER(prop);
-	return codec_modified(props, prop, settings);
-}
-
 static obs_properties_t *enc_properties2(void *data, void *type_data)
 {
 	UNUSED_PARAMETER(data);
-
-	const encoder_family *family = (const encoder_family *)type_data;
-	if (!family)
-		family = &families[0];
-	blog(LOG_INFO, "[Custom FFmpeg Audio] enc_properties2 using family: %s", family->id);
+	UNUSED_PARAMETER(type_data);
 
 	obs_properties_t *props = obs_properties_create();
 	obs_property_t *prop;
 
-	prop = obs_properties_add_list(props, "codec",
-		obs_module_text("Codec"),
-		OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_STRING);
-
-	for (const codec_entry *e = family->entries; e->name; e++)
-		obs_property_list_add_string(prop, e->name, e->codec_id);
-
-	obs_property_set_modified_callback(prop, codec_modified);
-
 	prop = obs_properties_add_int(props, "bitrate",
 		obs_module_text("Bitrate"), 16, 1024, 1);
 	obs_property_int_set_suffix(prop, " kbps");
-
-	prop = obs_properties_add_bool(props, "use_quality",
-		obs_module_text("UseQuality"));
-	obs_property_set_modified_callback(prop, quality_mode_modified);
-	obs_property_set_long_description(prop,
-		obs_module_text("UseQuality.Tooltip"));
-
-	prop = obs_properties_add_int_slider(props, "quality",
-		obs_module_text("Quality"), 0, 10, 1);
-	obs_property_set_long_description(prop,
-		obs_module_text("Quality.Tooltip"));
-
-	prop = obs_properties_add_list(props, "sample_rate",
-		obs_module_text("SampleRate"),
-		OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_STRING);
-	obs_property_list_add_string(prop, obs_module_text("SampleRate.Auto"), "auto");
-	obs_property_list_add_string(prop, "44100", "44100");
-	obs_property_list_add_string(prop, "48000", "48000");
-	obs_property_list_add_string(prop, "96000", "96000");
-	obs_property_list_add_string(prop, "192000", "192000");
-	obs_property_list_add_string(prop, "22050", "22050");
-	obs_property_list_add_string(prop, "32000", "32000");
-
-	prop = obs_properties_add_text(props, "custom_options",
-		obs_module_text("CustomOptions"), OBS_TEXT_MULTILINE);
-	obs_property_set_long_description(prop,
-		obs_module_text("CustomOptions.Tooltip"));
-
-	prop = obs_properties_add_int_slider(props, "strict_compliance",
-		obs_module_text("StrictCompliance"), -2, 2, 1);
-	obs_property_set_long_description(prop,
-		obs_module_text("StrictCompliance.Tooltip"));
 
 	return props;
 }
@@ -629,19 +558,13 @@ static obs_properties_t *enc_properties2(void *data, void *type_data)
 static bool enc_update(void *data, obs_data_t *settings)
 {
 	auto *enc = static_cast<custom_ffmpeg_audio_encoder *>(data);
-	const char *codec_id = obs_data_get_string(settings, "codec");
-	bool lossless = is_lossless_codec(codec_id);
-	bool use_quality = obs_data_get_bool(settings, "use_quality");
 
-	if (!use_quality && !lossless) {
+	if (!enc->use_quality && !is_lossless_codec(enc->codec_name.c_str())) {
 		enc->bitrate = (int)obs_data_get_int(settings, "bitrate");
 		if (enc->context) {
 			enc->context->bit_rate = enc->bitrate * 1000;
 		}
 	}
-
-	enc->use_quality = use_quality;
-	enc->quality = (int)obs_data_get_int(settings, "quality");
 
 	return true;
 }
