@@ -1,5 +1,6 @@
 #include "obs-custom-ffmpeg-audio-encoder.hpp"
 #include <util/dstr.h>
+#include <util/platform.h>
 #include <cstring>
 #include <cstdlib>
 
@@ -712,6 +713,14 @@ config_t *open_encoder_config(void)
 	}
 
 	blog(LOG_INFO, "[Custom FFmpeg Audio] config file: %s", path);
+
+	char *last_sep = strrchr(path, '/');
+	if (!last_sep) last_sep = strrchr(path, '\\');
+	if (last_sep) {
+		*last_sep = '\0';
+		os_mkdirs(path);
+		*last_sep = '/';
+	}
 
 	config_t *config = nullptr;
 	int ret = config_open(&config, path, CONFIG_OPEN_ALWAYS);
