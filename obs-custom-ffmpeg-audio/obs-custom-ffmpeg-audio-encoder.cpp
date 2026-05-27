@@ -17,7 +17,6 @@
 
 static const codec_entry aac_codecs[] = {
 	{"AAC (FFmpeg)",                "aac",           false, -1},
-	{"AAC (libfdk)",                "libfdk_aac",    false, -1},
 	{nullptr, nullptr, false, -1}
 };
 
@@ -38,11 +37,6 @@ static const codec_entry alac_codecs[] = {
 	{nullptr, nullptr, false, -1}
 };
 
-static const codec_entry wavpack_codecs[] = {
-	{"WavPack",                     "wavpack",       true,  -1},
-	{nullptr, nullptr, false, -1}
-};
-
 static const codec_entry mp3_codecs[] = {
 	{"MP3 (libmp3lame)",            "libmp3lame",    false, -1},
 	{nullptr, nullptr, false, -1}
@@ -51,11 +45,6 @@ static const codec_entry mp3_codecs[] = {
 static const codec_entry ac3_codecs[] = {
 	{"AC3",                         "ac3",           false, -1},
 	{"E-AC3",                       "eac3",          false, -1},
-	{nullptr, nullptr, false, -1}
-};
-
-static const codec_entry vorbis_codecs[] = {
-	{"Vorbis (libvorbis)",          "libvorbis",     false, -1},
 	{nullptr, nullptr, false, -1}
 };
 
@@ -79,23 +68,8 @@ static const codec_entry pcm_u8_codecs[] = {
 	{nullptr, nullptr, false, -1}
 };
 
-static const codec_entry pcm_alaw_codecs[] = {
-	{"PCM A-law",                   "pcm_alaw",      true,  -1},
-	{nullptr, nullptr, false, -1}
-};
-
-static const codec_entry pcm_mulaw_codecs[] = {
-	{"PCM mu-law",                  "pcm_mulaw",     true,  -1},
-	{nullptr, nullptr, false, -1}
-};
-
-static const codec_entry adpcm_ms_codecs[] = {
-	{"ADPCM MS",                    "adpcm_ms",      true,  -1},
-	{nullptr, nullptr, false, -1}
-};
-
-static const codec_entry g722_codecs[] = {
-	{"G.722",                       "g722",          false, -1},
+static const codec_entry pcm_s32le_codecs[] = {
+	{"PCM 32-bit",                  "pcm_s32le",     true,  -1},
 	{nullptr, nullptr, false, -1}
 };
 
@@ -106,18 +80,13 @@ const encoder_family families[] = {
 	{"custom_ffmpeg_audio_opus",   "opus",      "Custom FFmpeg Audio (Opus)",   opus_codecs,  "libopus",   true},
 	{"custom_ffmpeg_audio_flac",   "flac",      "Custom FFmpeg Audio (FLAC)",   flac_codecs,  "flac",      false},
 	{"custom_ffmpeg_audio_alac",   "alac",      "Custom FFmpeg Audio (ALAC)",   alac_codecs,  "alac",      false},
-	{"custom_ffmpeg_audio_wavpack","wavpack",   "Custom FFmpeg Audio (WavPack)",wavpack_codecs,"wavpack",   false},
 	{"custom_ffmpeg_audio_mp3",    "mp3",       "Custom FFmpeg Audio (MP3)",    mp3_codecs,   "libmp3lame",true},
 	{"custom_ffmpeg_audio_ac3",    "ac3",       "Custom FFmpeg Audio (AC3)",    ac3_codecs,   "ac3",       false},
-	{"custom_ffmpeg_audio_vorbis", "vorbis",    "Custom FFmpeg Audio (Vorbis)", vorbis_codecs,"libvorbis", true},
 	{"custom_ffmpeg_audio_pcm_s16le", "pcm_s16le", "Custom FFmpeg Audio (PCM 16-bit)",         pcm_codecs,        "pcm_s16le", false},
 	{"custom_ffmpeg_audio_pcm_s24le", "pcm_s24le", "Custom FFmpeg Audio (PCM 24-bit)",         pcm_24bit_codecs,  "pcm_s24le", false},
+	{"custom_ffmpeg_audio_pcm_s32le", "pcm_s32le", "Custom FFmpeg Audio (PCM 32-bit)",         pcm_s32le_codecs,  "pcm_s32le", false},
 	{"custom_ffmpeg_audio_pcm_f32le", "pcm_f32le", "Custom FFmpeg Audio (PCM 32-bit float)",   pcm_float_codecs,  "pcm_f32le", false},
 	{"custom_ffmpeg_audio_pcm_u8",    "pcm_u8",    "Custom FFmpeg Audio (PCM 8-bit)",          pcm_u8_codecs,     "pcm_u8",    false},
-	{"custom_ffmpeg_audio_pcm_alaw",  "pcm_alaw",  "Custom FFmpeg Audio (PCM A-law)",          pcm_alaw_codecs,   "pcm_alaw",  false},
-	{"custom_ffmpeg_audio_pcm_mulaw", "pcm_mulaw", "Custom FFmpeg Audio (PCM mu-law)",         pcm_mulaw_codecs,  "pcm_mulaw", false},
-	{"custom_ffmpeg_audio_adpcm_ms",  "adpcm_ms",  "Custom FFmpeg Audio (ADPCM MS)",           adpcm_ms_codecs,   "adpcm_ms",  false},
-	{"custom_ffmpeg_audio_g722",      "g722",      "Custom FFmpeg Audio (G.722)",              g722_codecs,       "g722",      false},
 	{nullptr, nullptr, nullptr, nullptr, nullptr, false},
 };
 
