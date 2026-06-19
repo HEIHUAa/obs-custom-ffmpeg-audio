@@ -75,7 +75,7 @@ For this reason, a separate configuration window is the most practical approach 
 
 ### License
 
-This plugin is distributed under the GNU General Public License v2.0.
+This plugin is distributed under the GNU General Public License v2 (or any later version).
 
 ---
 
@@ -147,3 +147,7 @@ quality=2
 1. **OBS 音频编码器设置区域无法自定义** — 在 OBS 的高级输出模式中，音频编码器的设置面板不允许插件添加任何控件选项，也无法做任何修改。与视频编码器不同，OBS 没有为音频编码器提供属性面板的插件扩展点，所以额外配置必须在面板之外实现。
 
 因此，通过独立的配置窗口来提供对 FFmpeg 选项的全面控制，是最为实际可行的方案。
+
+### 许可证
+
+本插件基于 GNU General Public License v2（或更高版本）发布。
