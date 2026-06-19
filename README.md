@@ -8,7 +8,7 @@
 
 ### Overview
 
-Custom FFmpeg Audio is an OBS Studio plugin that provides audio encoders with **customizable FFmpeg options**. Unlike OBS's built-in FFmpeg audio encoders which have fixed parameters, this plugin allows you to pass arbitrary FFmpeg `AVDictionary` key-value options to the underlying encoder, giving you full control over the encoding process.
+Custom FFmpeg Audio is an OBS Studio plugin that provides audio encoders with **customizable FFmpeg options**. Unlike OBS's built-in FFmpeg audio encoders which have fixed parameters, this plugin allows you to set any FFmpeg encoder options (such as `aac_coder=twoloop`, `application=audio`, etc.) to fine-tune the encoding behavior.
 
 ### Supported Audio Formats
 
@@ -40,7 +40,7 @@ Custom FFmpeg Audio is an OBS Studio plugin that provides audio encoders with **
 
 ### Custom Options Format
 
-The custom options are passed directly to FFmpeg's `av_dict_parse_string()`. Write one option per line:
+Write one option per line, using `key=value` format:
 
 ```
 option1=value1
@@ -67,16 +67,11 @@ Unrecognized or unused options will be logged as warnings and ignored — they w
 
 You might wonder: why are the custom options configured through a separate **Tools** menu window instead of being integrated into the encoder's properties panel (visible in Advanced Output settings)?
 
-The reason is twofold:
+The reason is simple:
 
-1. **Limited OBS audio encoder property API** — OBS's `get_properties2` interface for audio encoders supports only basic property types (int, float, bool, text, list). A multi-line text editor for arbitrary FFmpeg options does not fit well into this system, and OBS provides no plugin extension point for audio encoder properties beyond what `get_properties2` offers.
+1. **OBS audio encoder settings area is not customizable** — In OBS's Advanced Output mode, the audio encoder settings panel does not allow plugins to add any custom controls or make any modifications. Unlike video encoders, OBS does not provide a plugin extension point for audio encoder property panels. Therefore, any additional configuration must be done outside of this area.
 
-2. **Independent configuration storage** — The custom options are stored in a dedicated INI file within the OBS profile directory (`obs-custom-ffmpeg-audio.ini`), separate from OBS scene collections. This ensures that:
-   - Your FFmpeg tuning parameters persist across scene switches
-   - They remain independent of the OBS scene data format
-   - The encoder reads these options on creation, applying them before the codec is opened
-
-For these reasons, a separate configuration window is the most practical approach for providing full control over FFmpeg options.
+For this reason, a separate configuration window is the most practical approach for providing full control over FFmpeg options.
 
 ### License
 
@@ -88,7 +83,7 @@ This plugin is distributed under the GNU General Public License v2.0.
 
 ### 概述
 
-Custom FFmpeg Audio 是一个 OBS Studio 插件，提供了一组**可自定义 FFmpeg 选项**的音频编码器。与 OBS 内置的 FFmpeg 音频编码器不同，本插件允许你将任意的 FFmpeg `AVDictionary` 键值对选项传递给底层编码器，从而完全掌控编码过程。
+Custom FFmpeg Audio 是一个 OBS Studio 插件，提供了一组**可自定义 FFmpeg 选项**的音频编码器。与 OBS 内置的 FFmpeg 音频编码器不同，本插件允许你自由设置 FFmpeg 编码器参数（比如 `aac_coder=twoloop`、`application=audio` 等），从而灵活调整编码行为。
 
 ### 支持的音频格式
 
@@ -120,7 +115,7 @@ Custom FFmpeg Audio 是一个 OBS Studio 插件，提供了一组**可自定义 
 
 ### 自定义选项格式
 
-自定义选项会直接传递给 FFmpeg 的 `av_dict_parse_string()`。每行写一个选项：
+每行写一个选项，格式为 `key=value`：
 
 ```
 option1=value1
@@ -147,13 +142,8 @@ quality=2
 
 你可能会问：为什么自定义选项要通过独立的**工具**菜单窗口配置，而不是直接集成到编码器的属性面板（即在高级输出模式中看到的设置界面）中？
 
-原因有两个方面：
+原因很简单：
 
-1. **OBS 音频编码器属性接口的限制** — OBS 的音频编码器 `get_properties2` 接口只支持有限的控件类型（整数、浮点数、布尔值、文本框、下拉列表等）。多行文本编辑器形式的任意 FFmpeg 选项不适合放在这个面板中，且 OBS 没有为音频编码器提供除 `get_properties2` 以外的插件扩展点。
-
-2. **独立的配置存储** — 自定义选项保存在 OBS 配置目录下的独立 INI 文件中（`obs-custom-ffmpeg-audio.ini`），与 OBS 的场景集合数据分离。这样做的好处是：
-   - FFmpeg 调参设置不会因切换场景而丢失
-   - 配置独立于 OBS 的场景数据格式
-   - 编码器在创建时从该文件读取选项，在打开 Codec 之前应用
+1. **OBS 音频编码器设置区域无法自定义** — 在 OBS 的高级输出模式中，音频编码器的设置面板不允许插件添加任何控件选项，也无法做任何修改。与视频编码器不同，OBS 没有为音频编码器提供属性面板的插件扩展点，所以额外配置必须在面板之外实现。
 
 因此，通过独立的配置窗口来提供对 FFmpeg 选项的全面控制，是最为实际可行的方案。
